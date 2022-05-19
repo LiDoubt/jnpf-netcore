@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+		<DocumentationFile>bin\Debug\$(AssemblyName).xml</DocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+		<DocumentationFile>bin\Release\$(AssemblyName).xml</DocumentationFile>
+	</PropertyGroup>
+
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Common\JNPF.Common.Core\JNPF.Common.Core.csproj" />
+		<ProjectReference Include="..\..\Extend\JNPF.Extend.Interfaces\JNPF.Extend.Interfaces.csproj" />
+		<ProjectReference Include="..\..\Message\JNPF.Message.Interfaces\JNPF.Message.Interfaces.csproj" />
+		<ProjectReference Include="..\..\System\JNPF.System.Interfaces\JNPF.System.Interfaces.csproj" />
+		<ProjectReference Include="..\..\WorkFlow\JNPF.WorkFlow.Interfaces\JNPF.WorkFlow.Interfaces.csproj" />
+		<ProjectReference Include="..\JNPF.VisualDev.Interfaces\JNPF.VisualDev.Interfaces.csproj" />
+		<ProjectReference Include="..\JNPF.VisualDev.Run.Interfaces\JNPF.VisualDev.Run.Interfaces.csproj" />
+	</ItemGroup>
+</Project>

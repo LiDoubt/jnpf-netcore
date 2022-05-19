@@ -1,0 +1,928 @@
+﻿using JNPF.Common.Core.Manager;
+using JNPF.Common.Enum;
+using JNPF.Common.Extension;
+using JNPF.Common.Filter;
+using JNPF.Dependency;
+using JNPF.DynamicApiController;
+using JNPF.FriendlyException;
+using JNPF.WorkFlow.Entitys;
+using JNPF.WorkFlow.Entitys.Enum;
+using JNPF.WorkFlow.Interfaces.FlowEngine;
+using JNPF.WorkFlow.Interfaces.FlowTask;
+using JNPF.WorkFlow.Interfaces.FlowTask.Repository;
+using JNPF.@(@Model.NameSpace).Interfaces.@Model.ClassName;
+using Mapster;
+using Microsoft.AspNetCore.Mvc;
+using SqlSugar;
+using SqlSugar.IOC;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using JNPF.@(@Model.NameSpace).Entitys;
+using JNPF.@(@Model.NameSpace).Entitys.Dto.@Model.ClassName;
+using Yitter.IdGenerator;
+using JNPF.Common.Helper;
+using JNPF.JsonSerialization;
+@if(Model.IsExport){
+@:using JNPF.Common.Model.NPOI;
+@:using JNPF.Common.Configuration;
+@:using JNPF.DataEncryption;
+@:using JNPF.ClayObject;
+}
+@if(Model.IsBillRule || Model.DbLinkId != "0")
+{
+@:using JNPF.System.Interfaces.System;
+}
+@if(Model.useDataPermission)
+{
+@:using JNPF.System.Interfaces.Permission;
+}
+
+namespace JNPF.@(@Model.NameSpace).@Model.ClassName
+{
+    /// <summary>
+    /// @(@Model.BusName)服务
+    /// </summary>
+    [ApiDescriptionSettings(Tag = "@(@Model.NameSpace)",Name = "@Model.ClassName", Order = 200)]
+    [Route("api/@(@Model.NameSpace)/[controller]")]
+    public class @(@Model.ClassName)Service : I@(@Model.ClassName)Service, IDynamicApiController, ITransient
+    {
+        private readonly ISqlSugarRepository<@(@Model.MainTable)Entity> _@(@Model.LowerMainTable)Repository;
+@foreach (var item in Model.TableRelations)
+{
+        @:private readonly ISqlSugarRepository<@(@item.TableName)Entity> _@(@item.LowerTableName)Repository;
+}
+@if(Model.IsBillRule)
+{
+        @:private readonly IBillRullService _billRuleService;
+}
+@if(Model.DbLinkId != "0"){
+        @:private readonly IDbLinkService _dbLinkService;
+        @:private readonly IDataBaseService _dataBaseService;
+}
+@if(Model.useDataPermission)
+{
+        @:private readonly IAuthorizeService _authorizeService;    
+}
+        private readonly SqlSugarScope _db;
+        private readonly IUserManager _userManager;
+        private readonly IFlowTaskService _flowTaskService;
+        private readonly IFlowTaskRepository _flowTaskRepository;
+        private readonly IFlowEngineService _flowEngineService;
+
+        /// <summary>
+        /// 初始化一个<see cref="@(@Model.ClassName)Service"/>类型的新实例
+        /// </summary>
+        public @(@Model.ClassName)Service(
+            ISqlSugarRepository<@(@Model.MainTable)Entity> @(@Model.LowerMainTable)Repository,
+@foreach(var table in Model.TableRelations){
+            @:ISqlSugarRepository<@(@table.TableName)Entity> @(@table.LowerTableName)Repository,
+}
+@if(Model.IsBillRule)
+{
+            @:IBillRullService billRuleService,
+}
+@if(Model.DbLinkId != "0")
+{
+            @:IDbLinkService dbLinkService,
+            @:IDataBaseService dataBaseService,
+}
+@if(Model.useDataPermission)
+{
+            @:IAuthorizeService authorizeService,
+}
+            IUserManager userManager, 
+            IFlowTaskService flowTaskService, 
+            IFlowTaskRepository flowTaskRepository, 
+            IFlowEngineService flowEngineService)
+        {
+            _@(@Model.LowerMainTable)Repository = @(@Model.LowerMainTable)Repository;            
+            _db = _@(@Model.LowerMainTable)Repository.Context;
+@foreach(var table in Model.TableRelations)
+{
+            @:_@(@table.LowerTableName)Repository = @(@table.LowerTableName)Repository;
+}
+@if(Model.IsBillRule)
+{
+            @:_billRuleService = billRuleService;
+}
+@if(Model.DbLinkId != "0")
+{
+            @:_dbLinkService = dbLinkService;
+            @:_dataBaseService = dataBaseService;
+}
+@if(Model.useDataPermission)
+{
+            @:_authorizeService = authorizeService;
+}
+            _userManager = userManager;
+            _flowTaskService = flowTaskService;
+            _flowTaskRepository = flowTaskRepository;
+            _flowEngineService = flowEngineService;
+        }
+@foreach(var item in Model.Function){
+if(@item.FullName == "info"){
+@:
+        @:/// <summary>
+        @:/// 获取@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="id">参数</param>
+        @:/// <returns></returns>
+        @:[HttpGet("{id}")]
+        @:public async Task<dynamic> GetInfo(string id)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var entity = await _db.Queryable<@(@Model.MainTable)Entity>().FirstAsync(p => p.@Model.PrimaryKey == id);
+            @:var output = entity.Adapt<@(@Model.MainTable)InfoOutput>();
+@foreach (var table in Model.TableRelations){
+            @:
+            @:var @(@table.LowerTableName)List = await _db.Queryable<@(@table.TableName)Entity>().Where(w => w.@(@table.TableField) == entity.@(@table.RelationField)).ToListAsync();
+            @:output.@(@table.LowerTableName)List = @(@table.LowerTableName)List.Adapt<List<@(@table.TableName)InfoOutput>>();
+}
+            @:return output;
+        @:}
+}
+else if(@item.FullName == "add"){
+@:
+        @:/// <summary>
+        @:/// 新建@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="input">参数</param>
+        @:/// <returns></returns>
+        @:[HttpPost("")]
+        @:public async Task Create([FromBody] @(@Model.MainTable)CrInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var userInfo = await _userManager.GetUserInfo();
+if(@Model.TableRelations.Count == 0){
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+            @:entity.@(@Model.PrimaryKey) = YitIdHelper.NextId().ToString();
+@foreach(var column in Model.TableField){
+@if(column.jnpfKey == "createTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(column.jnpfKey == "createUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+else if(column.jnpfKey == "currPosition")
+{
+            @:entity.@column.ColumnName = userInfo.positionIds.FirstOrDefault() != null ? userInfo.positionIds.FirstOrDefault().id : null;
+}
+else if(column.jnpfKey == "currOrganize")
+{
+            @:entity.@column.ColumnName = userInfo.organizeId;
+}
+else if(column.jnpfKey == "billRule")
+{
+            @:entity.@(@column.ColumnName) = await _billRuleService.GetBillNumber("@(@column.Rule)");
+}
+}
+            @:var newEntity = await _db.Insertable(entity).IgnoreColumns(ignoreNullColumn: true).ExecuteReturnEntityAsync();
+                        
+            @:_ = newEntity ?? throw JNPFException.Oh(ErrorCode.COM1000);
+
+            @:if (input.flowState == 0)
+            @:{
+                @:var flowEngineEntity = await _flowEngineService.GetInfoByEnCode("@(@Model.EnCode)");
+                @:await FlowSubmit(newEntity.@(@Model.PrimaryKey), flowEngineEntity);
+            @:}
+
+}else{
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+            @:entity.@(@Model.PrimaryKey) = YitIdHelper.NextId().ToString();
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "createTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "createUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+else if(column.jnpfKey == "currPosition")
+{
+            @:entity.@column.ColumnName = userInfo.positionIds.FirstOrDefault() != null ? userInfo.positionIds.FirstOrDefault().id : null;
+}
+else if(column.jnpfKey == "currOrganize")
+{
+            @:entity.@column.ColumnName = userInfo.organizeId;
+}
+else if(column.jnpfKey == "billRule")
+{
+            @:entity.@(@column.ColumnName) = await _billRuleService.GetBillNumber("@(@column.Rule)");
+}
+}
+            @:try
+            @:{
+                @://开启事务
+                @:DbScoped.SugarScope.BeginTran();
+                @:
+                @://新增@(@Model.BusName)记录
+                @:var newEntity = await _db.Insertable(entity).IgnoreColumns(ignoreNullColumn: true).ExecuteReturnEntityAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                @:var @(@table.LowerTableName)EntityList = input.@(@table.LowerTableName)List.Adapt<List<@(@table.TableName)Entity>>();
+                @:foreach (var item in @(@table.LowerTableName)EntityList)
+                @:{
+                    @:item.@(@table.PrimaryKey) = YitIdHelper.NextId().ToString();
+                    @:item.@(@table.TableField) = newEntity.@(@table.RelationField);
+@foreach(var childer in table.ChilderColumnConfigList)
+{
+@if(childer.jnpfKey == "billRule")
+{
+                    @:item.@(childer.ColumnName) = await _billRuleService.GetBillNumber("@(@childer.Rule)");
+}
+}
+                @:}
+                @:await _db.Insertable(@(@table.LowerTableName)EntityList).ExecuteCommandAsync();
+}
+
+                @:if (input.flowState == 0)
+                @:{
+                    @:var flowEngineEntity = await _flowEngineService.GetInfoByEnCode("@(@Model.EnCode)");
+                    @:await FlowSubmit(newEntity.@(@Model.PrimaryKey), flowEngineEntity);
+                @:}
+
+                @://关闭事务
+                @:DbScoped.SugarScope.CommitTran();
+            @:}
+            @:catch (Exception)
+            @:{
+                @://回滚事务
+                @:DbScoped.Sugar.RollbackTran();
+                @:throw JNPFException.Oh(ErrorCode.COM1000);
+            @:}
+}
+        @:}
+}
+else if(@item.FullName == "edit"){
+@:
+        @:/// <summary>
+        @:/// 更新@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="id">主键</param>
+        @:/// <param name="input">参数</param>
+        @:/// <returns></returns>
+        @:[HttpPut("{id}")]
+        @:public async Task Update(string id, [FromBody] @(@Model.MainTable)UpInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+if(@Model.TableRelations.Count == 0){
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "modifyTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "modifyUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+}
+            @:var isOk = await _db.Updateable(entity).IgnoreColumns(ignoreAllNullColumns: true).ExecuteCommandAsync();
+
+            @:if (!(isOk > 0)) throw JNPFException.Oh(ErrorCode.COM1001);
+
+            @:if (input.flowState.Equals(0))
+            @:{
+                @:var flowEngineEntity = await _flowEngineService.GetInfoByEnCode("@(@Model.EnCode)");
+                @:await FlowSubmit(entity.@(@Model.PrimaryKey), flowEngineEntity);
+            @:}
+}else{
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "modifyTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "modifyUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+}
+            @:try
+            @:{
+                @://开启事务
+                @:DbScoped.SugarScope.BeginTran();
+                @:
+                @://更新@(@Model.BusName)记录
+                @:await _db.Updateable(entity).IgnoreColumns(ignoreAllNullColumns: true).ExecuteCommandAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                @://清空原有数据
+                @:await _db.Deleteable<@(@table.TableName)Entity>().Where(u => u.@(@table.TableField) == id).ExecuteCommandAsync();
+                @://新增新数据
+                @:var @(@table.LowerTableName)EntityList = input.@(@table.LowerTableName)List.Adapt<List<@(@table.TableName)Entity>>();
+                @:@(@table.LowerTableName)EntityList.ForEach(t =>
+                @:{
+                    @:t.@(@table.PrimaryKey) = YitIdHelper.NextId().ToString();
+                    @:t.@(@table.TableField) = entity.@(@table.RelationField);
+                @:});
+                @:await _db.Insertable(@(@table.LowerTableName)EntityList).ExecuteCommandAsync();
+}
+
+                @:if (input.flowState.Equals(0))
+                @:{
+                    @:var flowEngineEntity = await _flowEngineService.GetInfoByEnCode("@(@Model.EnCode)");
+                    @:await FlowSubmit(entity.@(@Model.PrimaryKey), flowEngineEntity);
+                @:}
+
+                @://关闭事务
+                @:DbScoped.SugarScope.CommitTran();
+            @:}
+            @:catch (Exception)
+            @:{
+                @://回滚事务
+                @:DbScoped.Sugar.RollbackTran();
+                @:throw JNPFException.Oh(ErrorCode.COM1001);
+            @:}
+}
+        @:}
+}
+else if(@item.FullName=="remove"){
+@:
+        @:/// <summary>
+        @:/// 删除@(@Model.BusName)
+        @:/// </summary>
+        @:/// <returns></returns>
+        @:[HttpDelete("{id}")]
+        @:public async Task Delete(string id)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+if(@Model.TableRelations.Count == 0){
+            @:var entity = await _db.Queryable<@(@Model.MainTable)Entity>().FirstAsync(p => p.@Model.PrimaryKey == id);
+            @:_ = entity ?? throw JNPFException.Oh(ErrorCode.COM1005);
+            @:var isOk = await _db.Deleteable<@(@Model.MainTable)Entity>().Where(d => d.@(@Model.PrimaryKey) == id).ExecuteCommandAsync();
+
+            @:if (!(isOk > 0)) throw JNPFException.Oh(ErrorCode.COM1002);
+}
+else
+{
+            @:var entity = await _db.Queryable<@(@Model.MainTable)Entity>().FirstAsync(p => p.@Model.PrimaryKey == id);
+            @:_ = entity ?? throw JNPFException.Oh(ErrorCode.COM1005);
+            @:try
+            @:{
+                @://开启事务
+                @:DbScoped.SugarScope.BeginTran();
+                @:
+                @://删除@(@Model.BusName)记录
+                @:await _db.Deleteable<@(@Model.MainTable)Entity>().Where(d => d.@(@Model.PrimaryKey) == id).ExecuteCommandAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                @://清空子表数据
+                @:await _db.Deleteable<@(@table.TableName)Entity>().Where(u => u.@(@table.TableField) == id).ExecuteCommandAsync();
+}
+                @:
+                @://关闭事务
+                @:DbScoped.SugarScope.CommitTran();
+            @:}
+            @:catch (Exception)
+            @:{
+                @://回滚事务
+                @:_db.RollbackTran();
+                @:throw JNPFException.Oh(ErrorCode.COM1002);
+            @:}
+}
+        @:}
+}
+else if(@item.FullName=="page"){
+@:
+        @:/// <summary>
+		@:/// 获取@(@Model.BusName)列表
+		@:/// </summary>
+		@:/// <param name="input">请求参数</param>
+		@:/// <returns></returns>
+@if(@item.IsInterface)
+{
+        @:[HttpGet("")]
+}
+else
+{
+        @:[NonAction]
+}
+        @:public async Task<dynamic> GetList([FromQuery] @(@Model.MainTable)ListQueryInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var sidx = input.sidx == null ? "@(Model.DefaultSidx)" : input.sidx;
+@foreach(var table in Model.TableField){
+@if(table.QueryWhether && (table.jnpfKey == "address" || table.jnpfKey == "cascader"))
+{
+            @:var @(@table.LowerColumnName)List = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToList().ToJson() :null;
+}
+if(@table.QueryWhether && @table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+            @:List<string> query@(@table.ColumnName) =  input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:var start@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).First() : null;
+            @:var end@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).Last() : null;
+break;
+case "numInput":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+case "calculate":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+default:
+            @:List<string> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:DateTime? start@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).First()) : null;
+            @:DateTime? end@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).Last()) : null;
+break;
+}
+}
+}
+@if(Model.useDataPermission)
+{
+            @:var authorizeWhere = new List<IConditionalModel>();
+
+            @://数据权限过滤
+            @:if (_userManager.User.IsAdministrator == 0)
+            @:{
+                @:authorizeWhere = _authorizeService.GetCondition<@(@Model.MainTable)ListOutput>("");
+            @:}
+}
+            @:var data = await _db.Queryable<@(@Model.MainTable)Entity,FlowTaskEntity>((a,b) => new JoinQueryInfos(JoinType.Left, a.@(@Model.PrimaryKey) == b.Id))
+@foreach(var table in Model.TableField){
+if(@table.QueryWhether){
+if(@table.QueryType == 1){
+if(@table.IsMultiple)
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else
+{
+@if(table.jnpfKey == "address" || table.jnpfKey == "cascader")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Equals(@(@table.LowerColumnName)List))
+}
+else if(table.jnpfKey == "checkbox")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}
+else{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Equals(input.@(@table.LowerColumnName)))
+}
+}
+}else if(@table.QueryType == 2){
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else if(@table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+                @:.WhereIF(query@(@table.ColumnName) != null, a => SqlFunc.Between(a.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "numInput":
+                @:.WhereIF(query@(@table.ColumnName) != null, a => SqlFunc.Between(a.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "calculate":
+                @:.WhereIF(query@(@table.ColumnName) != null, a => SqlFunc.Between(a.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+default:
+                @:.WhereIF(query@(@table.ColumnName) != null, a => a.@(@table.ColumnName) >= new DateTime(start@(@table.ColumnName).ToDate().Year, start@(@table.ColumnName).ToDate().Month, start@(@table.ColumnName).ToDate().Day, 0, 0, 0))
+                @:.WhereIF(query@(@table.ColumnName) != null, a => a.@(@table.ColumnName) <= new DateTime(end@(@table.ColumnName).ToDate().Year, end@(@table.ColumnName).ToDate().Month, end@(@table.ColumnName).ToDate().Day, 23, 59, 59))
+break;
+}
+}
+}
+}
+@if(Model.Type == 5 && Model.SearchList > 0)
+{
+@{var n = 0;}
+                @:.WhereIF(!string.IsNullOrEmpty(input.keyword), a =>
+@foreach (var table in Model.TableField){
+if(@table.QueryType == 1){
+@if(n==0)
+{
+                    @:a.@(@table.ColumnName).Contains(input.keyword)
+}
+else
+{
+                    @:|| a.@(@table.ColumnName).Contains(input.keyword)
+}
+@{n++;}
+}
+}
+                @:)
+}
+@if(Model.useDataPermission)
+{
+                @:.Where(authorizeWhere)
+}
+                @:.Select((a,b)=> new @(@Model.MainTable)ListOutput
+                @:{
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+                    @:@(@column.LowerColumnName) = a.@column.ColumnName,
+}
+else if(@column.IsShow){
+                    @:@(@column.LowerColumnName) = a.@column.ColumnName,
+}
+}
+                    @:flowState = SqlFunc.ToInt32(b.Status),
+                    @:flowId = b.FlowId
+                @:}).MergeTable().OrderBy(sidx+" "+input.sort).ToPagedListAsync(input.currentPage, input.pageSize);
+                @:return PageResult<@(@Model.MainTable)ListOutput>.SqlSugarPageResult(data);
+        @:}
+}
+else if(@item.FullName=="noPage"){
+@:
+        @:/// <summary>
+		@:/// 获取@(@Model.BusName)无分页列表
+		@:/// </summary>
+		@:/// <param name="input">请求参数</param>
+		@:/// <returns></returns>
+@if(@item.IsInterface)
+{
+        @:[HttpGet("")]
+}
+else
+{
+        @:[NonAction]
+}
+        @:public async Task<dynamic> GetNoPagingList([FromQuery] @(@Model.MainTable)ListQueryInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var sidx = input.sidx == null ? "@(Model.DefaultSidx)" : input.sidx;
+@foreach(var table in Model.TableField){
+@if(table.QueryWhether && table.jnpfKey == "address" || table.jnpfKey == "cascader")
+{
+            @:var @(@table.LowerColumnName)List = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToList().ToJson() : null;
+}
+if(@table.QueryWhether && @table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+            @:List<string> query@(@table.ColumnName) =  input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:var start@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).First() : null;
+            @:var end@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).Last() : null;
+break;
+case "numInput":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+case "calculate":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+default:
+            @:List<string> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:DateTime? start@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).First()) : null;
+            @:DateTime? end@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).Last()) : null;
+break;
+}
+}
+}
+@if(Model.useDataPermission)
+{
+            @:var authorizeWhere = new List<IConditionalModel>();
+
+            @://数据权限过滤
+            @:if (_userManager.User.IsAdministrator == 0)
+            @:{
+                @:authorizeWhere = _authorizeService.GetCondition<@(@Model.MainTable)ListOutput>("");
+            @:}
+}
+            @:var data = await _db.Queryable<@(@Model.MainTable)Entity,FlowTaskEntity>((a,b) => new JoinQueryInfos(JoinType.Left, a.@(@Model.PrimaryKey) == b.Id))
+@foreach(var table in Model.TableField){
+if(@table.QueryWhether){
+if(@table.QueryType == 1){
+if(@table.IsMultiple)
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else
+{
+@if(table.jnpfKey == "address" || table.jnpfKey == "cascader")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Equals(@(@table.LowerColumnName)List))
+}
+else if(table.jnpfKey == "checkbox")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}
+else{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Equals(input.@(@table.LowerColumnName)))
+}
+}
+}else if(@table.QueryType == 2){
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), a => a.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else if(@table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+                @:.WhereIF(query@(@table.ColumnName) != null, a => SqlFunc.Between(a.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "numInput":
+                @:.WhereIF(query@(@table.ColumnName) != null, a => SqlFunc.Between(a.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "calculate":
+                @:.WhereIF(query@(@table.ColumnName) != null, a => SqlFunc.Between(a.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+default:
+                @:.WhereIF(query@(@table.ColumnName) != null, a => a.@(@table.ColumnName) >= new DateTime(start@(@table.ColumnName).ToDate().Year, start@(@table.ColumnName).ToDate().Month, start@(@table.ColumnName).ToDate().Day, 0, 0, 0))
+                @:.WhereIF(query@(@table.ColumnName) != null, a => a.@(@table.ColumnName) <= new DateTime(end@(@table.ColumnName).ToDate().Year, end@(@table.ColumnName).ToDate().Month, end@(@table.ColumnName).ToDate().Day, 23, 59, 59))
+break;
+}
+}
+}
+}
+@if(Model.Type == 5 && Model.SearchList > 0)
+{
+@{var n = 0;}
+                @:.WhereIF(!string.IsNullOrEmpty(input.keyword), a =>
+@foreach (var table in Model.TableField){
+if(@table.QueryType == 1){
+@if(n==0)
+{
+                    @:a.@(@table.ColumnName).Contains(input.keyword)
+}
+else
+{
+                    @:|| a.@(@table.ColumnName).Contains(input.keyword)
+}
+@{n++;}
+}
+}
+                @:)
+}
+@if(Model.useDataPermission)
+{
+                @:.Where(authorizeWhere)
+}
+                @:.Select((a,b)=> new 
+                @:{
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+                    @:@(@column.LowerColumnName) = a.@column.ColumnName,
+}
+else if(@column.IsShow){
+                    @:@(@column.LowerColumnName) = a.@column.ColumnName,
+}
+}
+                    @:flowState = b.Status,
+                    @:flowId = b.FlowId
+                @:}).MergeTable().Select<@(@Model.MainTable)ListOutput>().OrderBy(sidx+" "+input.sort).ToListAsync();
+                @:return data;
+        @:}
+}
+else if(@item.FullName=="download"){
+@:
+        @:/// <summary>
+		@:/// 导出@(@Model.BusName)
+		@:/// </summary>
+		@:/// <param name="input">请求参数</param>
+		@:/// <returns></returns>
+        @:[HttpGet("Actions/Export")]
+        @:public async Task<dynamic> Export([FromQuery] @(@Model.MainTable)ListQueryInput input)
+        @:{
+            @:var userInfo = await _userManager.GetUserInfo();
+            @:var exportData = new List<@(@Model.MainTable)ListOutput>();
+            @:if (input.dataType == 0)
+            @:{
+                @:var data = Clay.Object(await this.GetList(input));
+                @:exportData = data.Solidify<PageResult<@(@Model.MainTable)ListOutput>>().list;
+            @:}
+            @:else
+            @:{
+                @:exportData = await this.GetNoPagingList(input);
+            @:}
+            @:List<ParamsModel> paramList = "[@(@Model.ColumnField)]".ToList<ParamsModel>();           
+            @:ExcelConfig excelconfig = new ExcelConfig();
+            @:excelconfig.FileName = "@(@Model.BusName).xls";
+            @:excelconfig.HeadFont = "微软雅黑";
+            @:excelconfig.HeadPoint = 10;
+            @:excelconfig.IsAllSizeColumn = true;
+            @:excelconfig.ColumnModel = new List<ExcelColumnModel>();
+            @:List<string> selectKeyList = input.selectKey.Split(',').ToList();
+            @:foreach (var item in selectKeyList)
+            @:{
+                @:var isExist = paramList.Find(p => p.field == item);
+                @:if (isExist != null)
+                @:{
+                    @:excelconfig.ColumnModel.Add(new ExcelColumnModel() { Column = isExist.field, ExcelColumn = isExist.value });
+                @:}
+            @:}
+            @:var addPath = FileVariable.TemporaryFilePath + excelconfig.FileName;
+            @:ExcelExportHelper<@(@Model.MainTable)ListOutput>.Export(exportData, excelconfig, addPath);
+            @:var fileName = _userManager.UserId + "|" + addPath + "|xls";
+            @:var output = new
+            @:{
+                @:name = excelconfig.FileName,
+                @:url = "/api/File/Download?encryption=" + DESCEncryption.Encrypt(fileName, "JNPF")
+            @:};
+            @:return output;
+        @:}
+}
+else if(@item.FullName == "batchRemove"){
+@:
+        @:/// <summary>
+        @:/// 批量删除@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="ids">主键数组</param>
+        @:/// <returns></returns>
+        @:[HttpPost("batchRemove")]
+        @:public async Task BatchRemove([FromBody] List<string> ids)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var entitys = await _db.Queryable<@(@Model.MainTable)Entity, FlowTaskEntity>((a, b) => new JoinQueryInfos(JoinType.Left, a.@(@Model.PrimaryKey) == b.Id)).In(a => a.@(@Model.PrimaryKey), ids).Where((a, b) => b.Status == 4 || b.Status == 0 || b.Status == null).ToListAsync();
+            @:if (entitys.Count > 0)
+            @:{
+                @:try
+                @:{
+                    @://开启事务
+                    @:DbScoped.SugarScope.BeginTran();
+
+                    @://批量删除@(@Model.BusName)
+                    @:await _db.Deleteable<@(@Model.MainTable)Entity>().Where(entitys).ExecuteCommandAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                    @://清空子表数据
+                    @:await _db.Deleteable<@(@table.TableName)Entity>().In(u => u.@(@table.TableField), entitys.Select(it => it.@(@table.RelationField)).ToArray()).ExecuteCommandAsync();
+}
+                    @://关闭事务
+                    @:DbScoped.SugarScope.CommitTran();
+                @:}
+                @:catch (Exception)
+                @:{
+                    @://回滚事务
+                    @:DbScoped.SugarScope.RollbackTran();
+                    @:throw JNPFException.Oh(ErrorCode.COM1002);
+                @:}
+            @:}
+        @:}
+}
+}
+        /// <summary>
+        /// 提交审核
+        /// </summary>
+        /// <param name="id">主键值</param>
+        /// <param name="flowEngineEntity">流程信息</param>
+        /// <returns></returns>
+        private async Task FlowSubmit(string id, FlowEngineEntity flowEngineEntity)
+        {
+            var @(@Model.LowerMainTable)Entity = await _@(@Model.LowerMainTable)Repository.FirstOrDefaultAsync(x => x.Id == id);
+            try
+            {
+                DbScoped.SugarScope.BeginTran();
+
+                #region 业务信息
+                
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "modifyTime"){
+                @:@(@Model.LowerMainTable)Entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "modifyUser"){
+                @:@(@Model.LowerMainTable)Entity.@column.ColumnName = _userManager.UserId;
+}
+}
+                await _@(@Model.LowerMainTable)Repository.UpdateAsync(@(@Model.LowerMainTable)Entity);
+
+                #endregion
+
+                #region 流程信息
+                var flowTaskEntity = await _flowTaskRepository.GetTaskInfo(id);
+                if (flowTaskEntity.IsNullOrEmpty())
+                {
+                    await _flowTaskService.Submit("", flowEngineEntity.Id, id, _userManager.User.RealName + "的" + flowEngineEntity.FullName, 1, null, @(@Model.LowerMainTable)Entity.Adapt<@(@Model.MainTable)CrInput>(), 0);
+                }
+                else
+                {
+                    await _flowTaskService.Submit(id, flowEngineEntity.Id, id, _userManager.User.RealName + "的"  + flowEngineEntity.FullName, 1, null, @(@Model.LowerMainTable)Entity.Adapt<@(@Model.MainTable)CrInput>(), 0);
+                }
+                #endregion
+
+                DbScoped.SugarScope.CommitTran();
+            }
+            catch (Exception)
+            {
+                DbScoped.Sugar.RollbackTran();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 撤回审核
+        /// </summary>
+        /// <param name="flowTaskEntity">流程任务</param>
+        /// <param name="flowHandleModel">流程经办</param>
+        private async Task FlowRevoke(FlowTaskEntity flowTaskEntity, string flowHandleModel)
+        {
+            var @(@Model.LowerMainTable)Entity = await _@(@Model.LowerMainTable)Repository.FirstOrDefaultAsync(x => x.Id == flowTaskEntity.ProcessId);
+            try
+            {
+                DbScoped.SugarScope.BeginTran();
+
+                #region 业务信息
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "modifyTime"){
+                @:@(@Model.LowerMainTable)Entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "modifyUser"){
+                @:@(@Model.LowerMainTable)Entity.@column.ColumnName = _userManager.UserId;
+}
+}
+                await _@(@Model.LowerMainTable)Repository.UpdateAsync(@(@Model.LowerMainTable)Entity);
+                #endregion
+
+                #region 流程信息
+                var flowTaskNodeEntityList = await _flowTaskRepository.GetTaskNodeList(flowTaskEntity.Id);
+                var flowTaskNodeEntity = flowTaskNodeEntityList.Find(m => m.SortCode == 2);
+                if (flowTaskNodeEntity.Completion > 0)
+                {
+                    throw new Exception("当前流程被处理，无法撤回流程");
+                }
+                else
+                {
+                    await _flowTaskService.Revoke(flowTaskEntity, flowHandleModel);
+                }
+                #endregion
+
+                DbScoped.SugarScope.CommitTran();
+            }
+            catch (Exception)
+            {
+                DbScoped.Sugar.RollbackTran();
+                throw;
+            }
+        }
+    }
+}

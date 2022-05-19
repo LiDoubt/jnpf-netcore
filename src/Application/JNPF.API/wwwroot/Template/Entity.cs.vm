@@ -1,0 +1,27 @@
+﻿using JNPF.Common.Const;
+using SqlSugar;
+using System;
+
+namespace JNPF.@(@Model.NameSpace).Entitys
+{
+    /// <summary>
+    /// @(@Model.BusName)
+    /// </summary>
+    [SugarTable("@(@Model.OriginalMainTableName)")]
+    [Tenant(ClaimConst.TENANT_ID)]
+    public class @(@Model.MainTable)Entity
+    {
+@foreach (var column in Model.TableField){
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+if(@column.ColumnName ==  @Model.PrimaryKey){       
+        @:[SugarColumn(ColumnName = "@(@column.Alias)", IsPrimaryKey = true)]
+}else{
+        @:[SugarColumn(ColumnName = "@(@column.Alias)")]        
+}
+        @:public @column.NetType @column.ColumnName { get; set; }
+        @:
+}
+    }
+}

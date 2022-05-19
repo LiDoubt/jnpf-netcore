@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Aspose.Cells" Version="21.6.0" />
+		<PackageReference Include="Aspose.Words" Version="21.7.0" />
+		<PackageReference Include="CSRedisCore" Version="3.6.6" />
+		<PackageReference Include="FreeSpire.Office" Version="4.3.1" />
+		<PackageReference Include="System.Diagnostics.PerformanceCounter" Version="5.0.1" />
+		<PackageReference Include="System.Management" Version="5.0.0" />
+		<PackageReference Include="Yitter.IdGenerator" Version="1.0.12" />
+		<PackageReference Include="NPOI" Version="2.5.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\Infrastructure\JNPF.Data.SqlSugar\JNPF.Data.SqlSugar.csproj" />
+		<ProjectReference Include="..\..\..\Infrastructure\JNPF.Mapster\JNPF.Mapster.csproj" />
+	</ItemGroup>
+
+</Project>

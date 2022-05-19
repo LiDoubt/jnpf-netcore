@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Message\JNPF.Message.Entitys\JNPF.Message.Entitys.csproj" />
+    <ProjectReference Include="..\..\VisualData\JNPF.VisualData.Entitys\JNPF.VisualData.Entitys.csproj" />
+    <ProjectReference Include="..\..\VisualDev\JNPF.VisualDev.Entitys\JNPF.VisualDev.Entitys.csproj" />
+    <ProjectReference Include="..\JNPF.System.Entitys\JNPF.System.Entitys.csproj" />
+  </ItemGroup>
+
+</Project>

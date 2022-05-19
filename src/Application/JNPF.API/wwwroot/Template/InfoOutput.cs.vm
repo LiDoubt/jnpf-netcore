@@ -1,0 +1,95 @@
+﻿using System;
+using System.Collections.Generic;
+@if(Model.IsUplpad)
+{
+@:using JNPF.Common.Model;
+}
+
+namespace JNPF.@(@Model.NameSpace).Entitys.Dto.@Model.ClassName
+{
+    /// <summary>
+    /// @(@Model.BusName)输出参数
+    /// </summary>
+    public class @(@Model.MainTable)InfoOutput
+    {
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public @column.NetType @column.LowerColumnName { get; set; }
+        @:
+}
+else{
+switch(column.jnpfKey)
+{
+case "select":
+@if(column.IsMultiple)
+{
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public List<string> @column.LowerColumnName { get; set; }
+        @:
+}
+else
+{
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public string @column.LowerColumnName { get; set; }
+        @:
+}
+break;
+case "checkbox":
+case "cascader":
+case "address":
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public List<string> @column.LowerColumnName { get; set; }
+        @:
+break;
+case "radio":
+case "treeSelect":
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public string @column.LowerColumnName { get; set; }
+        @:
+break;
+case "uploadImg":
+case "uploadFz":
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public List<FileControlsModel> @column.LowerColumnName { get; set; }
+        @:
+break;
+default:
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public @column.NetType @column.LowerColumnName { get; set; }
+        @:
+break;
+}
+}
+}
+@if(Model.IsMainTable && (Model.WebType == 3 || Model.Type == 3) && Model.isFlowId)
+{
+        @:/// <summary>
+        @:/// 流程引擎ID
+        @:/// </summary>
+        @:public string flowId { get; set; }
+        @:
+}
+@foreach (var table in Model.TableRelations){
+        @:/// <summary>
+        @:/// @table.TableComment
+        @:/// </summary>
+        @:public List<@(@table.TableName)InfoOutput> @(@table.LowerTableName)List { get; set; }
+        @:
+}
+    }
+}

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <EnableUnsafrBinaryFormatterSerialization>true</EnableUnsafrBinaryFormatterSerialization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modularity\App\JNPF.App\JNPF.Apps.csproj" />
+    <ProjectReference Include="..\..\Modularity\Extend\JNPF.Extend\JNPF.Extend.csproj" />
+    <ProjectReference Include="..\..\Modularity\Message\JNPF.Message\JNPF.Message.csproj" />
+    <ProjectReference Include="..\..\Modularity\OAuth\JNPF.OAuth\JNPF.OAuth.csproj" />
+    <ProjectReference Include="..\..\Modularity\SubDev\JNPF.SubDev\JNPF.SubDev.csproj" />
+    <ProjectReference Include="..\..\Modularity\System\JNPF.System\JNPF.System.csproj" />
+    <ProjectReference Include="..\..\Modularity\TaskSchedule\JNPF.TaskScheduler\JNPF.TaskScheduler.csproj" />
+    <ProjectReference Include="..\..\Modularity\VisualData\JNPF.VisualData\JNPF.VisualData.csproj" />
+    <ProjectReference Include="..\..\Modularity\VisualDev\JNPF.VisualDev.Run.Core\JNPF.VisualDev.Run.Core.csproj" />
+    <ProjectReference Include="..\..\Modularity\VisualDev\JNPF.VisualDev\JNPF.VisualDev.csproj" />
+    <ProjectReference Include="..\..\Modularity\WorkFlow\JNPF.WorkFlow\JNPF.WorkFlow.csproj" />
+  </ItemGroup>
+
+</Project>

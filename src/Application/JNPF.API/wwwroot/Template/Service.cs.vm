@@ -1,0 +1,801 @@
+﻿using JNPF.Common.Core.Manager;
+using JNPF.Common.Enum;
+using JNPF.Common.Extension;
+using JNPF.Common.Filter;
+using JNPF.Dependency;
+using JNPF.DynamicApiController;
+using JNPF.FriendlyException;
+using JNPF.@(@Model.NameSpace).Interfaces.@Model.ClassName;
+using Mapster;
+using Microsoft.AspNetCore.Mvc;
+using SqlSugar;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using JNPF.@(@Model.NameSpace).Entitys;
+using JNPF.@(@Model.NameSpace).Entitys.Dto.@Model.ClassName;
+using Yitter.IdGenerator;
+using JNPF.Common.Helper;
+using JNPF.JsonSerialization;
+@if(Model.IsExport){
+@:using JNPF.Common.Model.NPOI;
+@:using JNPF.Common.Configuration;
+@:using JNPF.DataEncryption;
+@:using JNPF.ClayObject;
+}
+@if(Model.IsBillRule || Model.DbLinkId != "0")
+{
+@:using JNPF.System.Interfaces.System;
+}
+@if(Model.useDataPermission)
+{
+@:using JNPF.System.Interfaces.Permission;
+}
+
+namespace JNPF.@(@Model.NameSpace).@Model.ClassName
+{
+    /// <summary>
+    /// @(@Model.BusName)服务
+    /// </summary>
+    [ApiDescriptionSettings(Tag = "@(@Model.NameSpace)",Name = "@Model.ClassName", Order = 200)]
+    [Route("api/@(@Model.NameSpace)/[controller]")]
+    public class @(@Model.ClassName)Service : I@(@Model.ClassName)Service, IDynamicApiController, ITransient
+    {
+        private readonly ISqlSugarRepository<@(@Model.MainTable)Entity> _@(@Model.LowerMainTable)Repository;
+@foreach (var item in Model.TableRelations)
+{
+        @:private readonly ISqlSugarRepository<@(@item.TableName)Entity> _@(@item.LowerTableName)Repository;
+}
+@if(Model.IsBillRule)
+{
+        @:private readonly IBillRullService _billRuleService;
+}
+@if(Model.DbLinkId != "0"){
+        @:private readonly IDbLinkService _dbLinkService;
+        @:private readonly IDataBaseService _dataBaseService;
+}
+        private readonly SqlSugarScope _db;
+        private readonly IUserManager _userManager;
+@if(Model.useDataPermission)
+{
+        @:private readonly IAuthorizeService _authorizeService;    
+}
+
+        /// <summary>
+        /// 初始化一个<see cref="@(@Model.ClassName)Service"/>类型的新实例
+        /// </summary>
+        public @(@Model.ClassName)Service(
+            ISqlSugarRepository<@(@Model.MainTable)Entity> @(@Model.LowerMainTable)Repository,
+@foreach(var table in Model.TableRelations){
+            @:ISqlSugarRepository<@(@table.TableName)Entity> @(@table.LowerTableName)Repository,
+}
+@if(Model.IsBillRule)
+{
+            @:IBillRullService billRuleService,
+}
+@if(Model.DbLinkId != "0")
+{
+            @:IDbLinkService dbLinkService,
+            @:IDataBaseService dataBaseService,
+}
+@if(Model.useDataPermission)
+{
+            @:IAuthorizeService authorizeService,
+}
+            IUserManager userManager)
+        {
+            _@(@Model.LowerMainTable)Repository = @(@Model.LowerMainTable)Repository;            
+            _db = _@(@Model.LowerMainTable)Repository.Context;
+@foreach(var table in Model.TableRelations)
+{
+            @:_@(@table.LowerTableName)Repository = @(@table.LowerTableName)Repository;
+}
+@if(Model.IsBillRule)
+{
+            @:_billRuleService = billRuleService;
+}
+@if(Model.DbLinkId != "0")
+{
+            @:_dbLinkService = dbLinkService;
+            @:_dataBaseService = dataBaseService;
+}
+@if(Model.useDataPermission)
+{
+            @:_authorizeService = authorizeService;
+}
+            _userManager = userManager;
+        }
+@foreach(var item in Model.Function){
+if(@item.FullName == "info"){
+@:
+        @:/// <summary>
+        @:/// 获取@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="id">参数</param>
+        @:/// <returns></returns>
+        @:[HttpGet("{id}")]
+        @:public async Task<dynamic> GetInfo(string id)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var entity = await _db.Queryable<@(@Model.MainTable)Entity>().FirstAsync(p => p.@Model.PrimaryKey == id);
+            @:var output = entity.Adapt<@(@Model.MainTable)InfoOutput>();
+@foreach (var table in Model.TableRelations){
+            @:
+            @:var @(@table.LowerTableName)List = await _db.Queryable<@(@table.TableName)Entity>().Where(w => w.@(@table.TableField) == entity.@(@table.RelationField)).ToListAsync();
+            @:output.@(@table.LowerTableName)List = @(@table.LowerTableName)List.Adapt<List<@(@table.TableName)InfoOutput>>();
+}
+            @:return output;
+        @:}
+}
+else if(@item.FullName == "add"){
+@:
+        @:/// <summary>
+        @:/// 新建@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="input">参数</param>
+        @:/// <returns></returns>
+        @:[HttpPost("")]
+        @:public async Task Create([FromBody] @(@Model.MainTable)CrInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var userInfo = await _userManager.GetUserInfo();
+if(@Model.TableRelations.Count == 0){
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+            @:entity.@(@Model.PrimaryKey) = YitIdHelper.NextId().ToString();
+@foreach(var column in Model.TableField){
+@if(column.jnpfKey == "createTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(column.jnpfKey == "createUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+else if(column.jnpfKey == "currPosition")
+{
+            @:entity.@column.ColumnName = userInfo.positionIds.FirstOrDefault() != null ? userInfo.positionIds.FirstOrDefault().id : null;
+}
+else if(column.jnpfKey == "currOrganize")
+{
+            @:entity.@column.ColumnName = userInfo.organizeId;
+}
+else if(column.jnpfKey == "billRule")
+{
+            @:entity.@(@column.ColumnName) = await _billRuleService.GetBillNumber("@(@column.Rule)");
+}
+}
+            @:var isOk = await _db.Insertable(entity).IgnoreColumns(ignoreNullColumn: true).ExecuteCommandAsync();
+
+            @:if (!(isOk > 0)) throw JNPFException.Oh(ErrorCode.COM1000);
+}else{
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+            @:entity.@(@Model.PrimaryKey) = YitIdHelper.NextId().ToString();
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "createTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "createUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+else if(column.jnpfKey == "currPosition")
+{
+            @:entity.@column.ColumnName = userInfo.positionIds.FirstOrDefault() != null ? userInfo.positionIds.FirstOrDefault().id : null;
+}
+else if(column.jnpfKey == "currOrganize")
+{
+            @:entity.@column.ColumnName = userInfo.organizeId;
+}
+else if(column.jnpfKey == "billRule")
+{
+            @:entity.@(@column.ColumnName) = await _billRuleService.GetBillNumber("@(@column.Rule)");
+}
+}
+            @:try
+            @:{
+                @://开启事务
+                @:_db.BeginTran();
+                @:
+                @://新增@(@Model.BusName)记录
+                @:var newEntity = await _db.Insertable(entity).IgnoreColumns(ignoreNullColumn: true).ExecuteReturnEntityAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                @:var @(@table.LowerTableName)EntityList = input.@(@table.LowerTableName)List.Adapt<List<@(@table.TableName)Entity>>();
+                @:if(@(@table.LowerTableName)EntityList != null)
+                @:{
+                    @:foreach (var item in @(@table.LowerTableName)EntityList)
+                    @:{
+                        @:item.@(@table.PrimaryKey) = YitIdHelper.NextId().ToString();
+                        @:item.@(@table.TableField) = newEntity.@(@table.RelationField);
+@foreach(var childer in table.ChilderColumnConfigList)
+{
+@if(childer.jnpfKey == "billRule")
+{
+                        @:item.@(childer.ColumnName) = await _billRuleService.GetBillNumber("@(@childer.Rule)");
+}
+}
+                    @:}
+                    @:await _db.Insertable(@(@table.LowerTableName)EntityList).ExecuteCommandAsync();
+                @:}
+}
+@:
+                @://关闭事务
+                @:_db.CommitTran();
+            @:}
+            @:catch (Exception)
+            @:{
+                @://回滚事务
+                @:_db.RollbackTran();
+                @:throw JNPFException.Oh(ErrorCode.COM1000);
+            @:}
+}
+        @:}
+}
+else if(@item.FullName == "edit"){
+@:
+        @:/// <summary>
+        @:/// 更新@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="id">主键</param>
+        @:/// <param name="input">参数</param>
+        @:/// <returns></returns>
+        @:[HttpPut("{id}")]
+        @:public async Task Update(string id, [FromBody] @(@Model.MainTable)UpInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+if(@Model.TableRelations.Count == 0){
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "modifyTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "modifyUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+}
+            @:var isOk = await _db.Updateable(entity).IgnoreColumns(ignoreAllNullColumns: true).ExecuteCommandAsync();
+
+            @:if (!(isOk > 0)) throw JNPFException.Oh(ErrorCode.COM1001);
+}else{
+            @:var entity = input.Adapt<@(@Model.MainTable)Entity>();
+@foreach(var column in Model.TableField){
+if(@column.jnpfKey == "modifyTime"){
+            @:entity.@column.ColumnName = DateTime.Now;  
+}
+else if(@column.jnpfKey == "modifyUser"){
+            @:entity.@column.ColumnName = _userManager.UserId;
+}
+}
+            @:try
+            @:{
+                @://开启事务
+                @:_db.BeginTran();
+                @:
+                @://更新@(@Model.BusName)记录
+                @:await _db.Updateable(entity).IgnoreColumns(ignoreAllNullColumns: true).ExecuteCommandAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                @://清空原有数据
+                @:await _db.Deleteable<@(@table.TableName)Entity>().Where(u => u.@(@table.TableField) == id).ExecuteCommandAsync();
+                @://新增新数据
+                @:var @(@table.LowerTableName)EntityList = input.@(@table.LowerTableName)List.Adapt<List<@(@table.TableName)Entity>>();
+                @:if(@(@table.LowerTableName)EntityList != null)
+                @:{
+                    @:foreach (var item in @(@table.LowerTableName)EntityList)
+                    @:{
+                        @:item.@(@table.PrimaryKey) = YitIdHelper.NextId().ToString();
+                        @:item.@(@table.TableField) = entity.@(@table.RelationField);
+@foreach(var childer in table.ChilderColumnConfigList)
+{
+@if(childer.jnpfKey == "billRule")
+{
+                        @:item.@(childer.ColumnName) = await _billRuleService.GetBillNumber("@(@childer.Rule)");
+}
+}
+                    @:}
+                    @:await _db.Insertable(@(@table.LowerTableName)EntityList).ExecuteCommandAsync();
+                @:}
+}
+                @:
+                @://关闭事务
+                @:_db.CommitTran();
+            @:}
+            @:catch (Exception)
+            @:{
+                @://回滚事务
+                @:_db.RollbackTran();
+                @:throw JNPFException.Oh(ErrorCode.COM1001);
+            @:}
+}
+        @:}
+}
+else if(@item.FullName=="remove"){
+@:
+        @:/// <summary>
+        @:/// 删除@(@Model.BusName)
+        @:/// </summary>
+        @:/// <returns></returns>
+        @:[HttpDelete("{id}")]
+        @:public async Task Delete(string id)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+if(@Model.TableRelations.Count == 0){
+            @:var entity = await _db.Queryable<@(@Model.MainTable)Entity>().FirstAsync(p => p.@Model.PrimaryKey == id);
+            @:_ = entity ?? throw JNPFException.Oh(ErrorCode.COM1005);
+            @:var isOk = await _db.Deleteable<@(@Model.MainTable)Entity>().Where(d => d.@(@Model.PrimaryKey) == id).ExecuteCommandAsync();
+
+            @:if (!(isOk > 0)) throw JNPFException.Oh(ErrorCode.COM1002);
+}
+else
+{
+            @:var entity = await _db.Queryable<@(@Model.MainTable)Entity>().FirstAsync(p => p.@Model.PrimaryKey == id);
+            @:_ = entity ?? throw JNPFException.Oh(ErrorCode.COM1005);
+            @:try
+            @:{
+                @://开启事务
+                @:_db.BeginTran();
+                @:
+                @://删除@(@Model.BusName)记录
+                @:await _db.Deleteable<@(@Model.MainTable)Entity>().Where(d => d.@(@Model.PrimaryKey) == id).ExecuteCommandAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                @://清空子表数据
+                @:await _db.Deleteable<@(@table.TableName)Entity>().Where(u => u.@(@table.TableField) == id).ExecuteCommandAsync();
+}
+                @:
+                @://关闭事务
+                @:_db.CommitTran();
+            @:}
+            @:catch (Exception)
+            @:{
+                @://回滚事务
+                @:_db.RollbackTran();
+                @:throw JNPFException.Oh(ErrorCode.COM1002);
+            @:}
+}
+        @:}
+}
+else if(@item.FullName=="page"){
+@:
+        @:/// <summary>
+		@:/// 获取@(@Model.BusName)列表
+		@:/// </summary>
+		@:/// <param name="input">请求参数</param>
+		@:/// <returns></returns>
+@if(@item.IsInterface)
+{
+        @:[HttpGet("")]
+}
+else
+{
+        @:[NonAction]
+}
+        @:public async Task<dynamic> GetList([FromQuery] @(@Model.MainTable)ListQueryInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+@if(Model.useDataPermission)
+{
+            @:var authorizeWhere = new List<IConditionalModel>();
+
+            @://数据权限过滤
+            @:if (_userManager.User.IsAdministrator == 0)
+            @:{
+                @:authorizeWhere = _authorizeService.GetCondition<@(@Model.MainTable)ListOutput>("");
+            @:}
+}
+            @:var sidx = input.sidx == null ? "@(Model.DefaultSidx)" : input.sidx;
+@foreach(var table in Model.TableField){
+@if(table.QueryWhether && (table.jnpfKey == "address" || table.jnpfKey == "cascader"))
+{
+            @:var @(@table.LowerColumnName)List = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToList().ToJson() :null;
+}
+if(@table.QueryWhether && @table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+            @:List<string> query@(@table.ColumnName) =  input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:var start@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).First() : null;
+            @:var end@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).Last() : null;
+break;
+case "numInput":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+case "calculate":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+default:
+            @:List<string> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:DateTime? start@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).First()) : null;
+            @:DateTime? end@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).Last()) : null;
+break;
+}
+}
+}
+            @:var data = await _db.Queryable<@(@Model.MainTable)Entity>()
+@foreach(var table in Model.TableField){
+if(@table.QueryWhether){
+if(@table.QueryType == 1){
+if(@table.IsMultiple)
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else
+{
+@if(table.jnpfKey == "address" || table.jnpfKey == "cascader")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Equals(@(@table.LowerColumnName)List))
+}
+else if(table.jnpfKey == "checkbox")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}
+else{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Equals(input.@(@table.LowerColumnName)))
+}
+}
+}else if(@table.QueryType == 2){
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else if(@table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+                @:.WhereIF(query@(@table.ColumnName) != null, p => SqlFunc.Between(p.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "numInput":
+                @:.WhereIF(query@(@table.ColumnName) != null, p => SqlFunc.Between(p.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "calculate":
+                @:.WhereIF(query@(@table.ColumnName) != null, p => SqlFunc.Between(p.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+default:
+                @:.WhereIF(query@(@table.ColumnName) != null, p => p.@(@table.ColumnName) >= new DateTime(start@(@table.ColumnName).ToDate().Year, start@(@table.ColumnName).ToDate().Month, start@(@table.ColumnName).ToDate().Day, 0, 0, 0))
+                @:.WhereIF(query@(@table.ColumnName) != null, p => p.@(@table.ColumnName) <= new DateTime(end@(@table.ColumnName).ToDate().Year, end@(@table.ColumnName).ToDate().Month, end@(@table.ColumnName).ToDate().Day, 23, 59, 59))
+break;
+}
+}
+}
+}
+@if(Model.Type == 5 && Model.SearchList > 0)
+{
+@{var n = 0;}
+                @:.WhereIF(!string.IsNullOrEmpty(input.keyword), it=>
+@foreach (var table in Model.TableField){
+if(@table.QueryType == 1){
+@if(n==0)
+{
+                    @:it.@(@table.ColumnName).Contains(input.keyword)
+}
+else
+{
+                    @:|| it.@(@table.ColumnName).Contains(input.keyword)
+}
+@{n++;}
+}
+}
+                @:)
+}
+@if(Model.useDataPermission)
+{
+                @:.Where(authorizeWhere)
+}
+                @:.Select(it=> new @(@Model.MainTable)ListOutput
+                @:{
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+                    @:@(@column.LowerColumnName) = it.@column.ColumnName,
+}
+else if(@column.IsShow){
+                    @:@(@column.LowerColumnName)=it.@column.ColumnName,
+}
+}
+                @:}).MergeTable().OrderBy(sidx+" "+input.sort).ToPagedListAsync(input.currentPage, input.pageSize);
+                @:return PageResult<@(@Model.MainTable)ListOutput>.SqlSugarPageResult(data);
+        @:}
+}
+else if(@item.FullName=="noPage"){
+@:
+        @:/// <summary>
+		@:/// 获取@(@Model.BusName)无分页列表
+		@:/// </summary>
+		@:/// <param name="input">请求参数</param>
+		@:/// <returns></returns>
+@if(@item.IsInterface)
+{
+        @:[HttpGet("")]
+}
+else
+{
+        @:[NonAction]
+}
+        @:public async Task<dynamic> GetNoPagingList([FromQuery] @(@Model.MainTable)ListQueryInput input)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var sidx = input.sidx == null ? "@(Model.DefaultSidx)" : input.sidx;
+@foreach(var table in Model.TableField){
+@if(table.QueryWhether && (table.jnpfKey == "address" || table.jnpfKey == "cascader"))
+{
+            @:var @(@table.LowerColumnName)List = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToList().ToJson() : null;
+}
+if(@table.QueryWhether && @table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+            @:List<string> query@(@table.ColumnName) =  input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:var start@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).First() : null;
+            @:var end@(@table.ColumnName) = query@(@table.ColumnName) != null ? query@(@table.ColumnName).Last() : null;
+break;
+case "numInput":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+case "calculate":
+            @:List<object> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<object>>() : null;
+            @:var start@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).First().ToString()) ? query@(@table.ColumnName).First() : decimal.MinValue;
+            @:var end@(@table.ColumnName) = input.@(@table.LowerColumnName) != null && !string.IsNullOrEmpty(query@(@table.ColumnName).Last().ToString()) ? query@(@table.ColumnName).Last() : decimal.MaxValue;
+break;
+default:
+            @:List<string> query@(@table.ColumnName) = input.@(@table.LowerColumnName) != null ? input.@(@table.LowerColumnName).Split(',').ToObeject<List<string>>() : null;
+            @:DateTime? start@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).First()) : null;
+            @:DateTime? end@(@table.ColumnName) = query@(@table.ColumnName) != null ? Ext.GetDateTime(query@(@table.ColumnName).Last()) : null;
+break;
+}
+}
+}
+@if(Model.useDataPermission)
+{
+            @:var authorizeWhere = new List<IConditionalModel>();
+
+            @://数据权限过滤
+            @:if (_userManager.User.IsAdministrator == 0)
+            @:{
+                @:authorizeWhere = _authorizeService.GetCondition<@(@Model.MainTable)ListOutput>("");
+            @:}
+}
+
+            @:var data = await _db.Queryable<@(@Model.MainTable)Entity>()
+                @foreach(var table in Model.TableField){
+if(@table.QueryWhether){
+if(@table.QueryType == 1){
+if(@table.IsMultiple)
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else
+{
+@if(table.jnpfKey == "address" || table.jnpfKey == "cascader")
+{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Equals(@(@table.LowerColumnName)List))
+}
+else{
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Equals(input.@(@table.LowerColumnName)))
+}
+}
+}else if(@table.QueryType == 2){
+                @:.WhereIF(!string.IsNullOrEmpty(input.@(@table.LowerColumnName)), p => p.@(@table.ColumnName).Contains(input.@(@table.LowerColumnName)))
+}else if(@table.QueryType == 3){
+switch(@table.jnpfKey){
+case "time":
+                @:.WhereIF(query@(@table.ColumnName) != null, p => SqlFunc.Between(p.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "numInput":
+                @:.WhereIF(query@(@table.ColumnName) != null, p => SqlFunc.Between(p.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+case "calculate":
+                @:.WhereIF(query@(@table.ColumnName) != null, p => SqlFunc.Between(p.@(@table.ColumnName), start@(@table.ColumnName), end@(@table.ColumnName)))
+break;
+default:
+                @:.WhereIF(query@(@table.ColumnName) != null, p => p.@(@table.ColumnName) >= new DateTime(start@(@table.ColumnName).ToDate().Year, start@(@table.ColumnName).ToDate().Month, start@(@table.ColumnName).ToDate().Day, 0, 0, 0))
+                @:.WhereIF(query@(@table.ColumnName) != null, p => p.@(@table.ColumnName) <= new DateTime(end@(@table.ColumnName).ToDate().Year, end@(@table.ColumnName).ToDate().Month, end@(@table.ColumnName).ToDate().Day, 23, 59, 59))
+break;
+}
+}
+}
+}
+@if(Model.Type == 5 && Model.SearchList > 0)
+{
+@{var n = 0;}
+                @:.WhereIF(!string.IsNullOrEmpty(input.keyword), it=>
+@foreach (var table in Model.TableField){
+if(@table.QueryType == 1){
+@if(n==0)
+{
+                    @:it.@(@table.ColumnName).Contains(input.keyword)
+}
+else
+{
+                    @:|| it.@(@table.ColumnName).Contains(input.keyword)
+}
+@{n++;}
+}
+}
+                @:)
+}
+@if(Model.useDataPermission)
+{
+                @:.Where(authorizeWhere)
+}
+                @:.Select(it=> new @(@Model.MainTable)ListOutput
+                @:{
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+                    @:@(@column.LowerColumnName) = it.@column.ColumnName,
+}
+else if(@column.IsShow){
+                    @:@(@column.LowerColumnName)=it.@column.ColumnName,
+}
+}
+                @:}).MergeTable().OrderBy(sidx+" "+input.sort).ToListAsync();
+                @:return data;
+        @:}
+}
+else if(@item.FullName=="download"){
+@:
+        @:/// <summary>
+		@:/// 导出@(@Model.BusName)
+		@:/// </summary>
+		@:/// <param name="input">请求参数</param>
+		@:/// <returns></returns>
+        @:[HttpGet("Actions/Export")]
+        @:public async Task<dynamic> Export([FromQuery] @(@Model.MainTable)ListQueryInput input)
+        @:{
+            @:var userInfo = await _userManager.GetUserInfo();
+            @:var exportData = new List<@(@Model.MainTable)ListOutput>();
+            @:if (input.dataType == 0)
+            @:{
+                @:var data = Clay.Object(await this.GetList(input));
+                @:exportData = data.Solidify<PageResult<@(@Model.MainTable)ListOutput>>().list;
+            @:}
+            @:else
+            @:{
+                @:exportData = await this.GetNoPagingList(input);
+            @:}
+            @:List<ParamsModel> paramList = "[@(@Model.ColumnField)]".ToList<ParamsModel>();           
+            @:ExcelConfig excelconfig = new ExcelConfig();
+            @:excelconfig.FileName = "@(@Model.BusName).xls";
+            @:excelconfig.HeadFont = "微软雅黑";
+            @:excelconfig.HeadPoint = 10;
+            @:excelconfig.IsAllSizeColumn = true;
+            @:excelconfig.ColumnModel = new List<ExcelColumnModel>();
+            @:List<string> selectKeyList = input.selectKey.Split(',').ToList();
+            @:foreach (var item in selectKeyList)
+            @:{
+                @:var isExist = paramList.Find(p => p.field == item);
+                @:if (isExist != null)
+                @:{
+                    @:excelconfig.ColumnModel.Add(new ExcelColumnModel() { Column = isExist.field, ExcelColumn = isExist.value });
+                @:}
+            @:}
+            @:var addPath = FileVariable.TemporaryFilePath + excelconfig.FileName;
+            @:ExcelExportHelper<@(@Model.MainTable)ListOutput>.Export(exportData, excelconfig, addPath);
+            @:var fileName = _userManager.UserId + "|" + addPath + "|xls";
+            @:var output = new
+            @:{
+                @:name = excelconfig.FileName,
+                @:url = "/api/File/Download?encryption=" + DESCEncryption.Encrypt(fileName, "JNPF")
+            @:};
+            @:return output;
+        @:}
+}
+else if(@item.FullName == "batchRemove"){
+@:
+        @:/// <summary>
+        @:/// 批量删除@(@Model.BusName)
+        @:/// </summary>
+        @:/// <param name="ids">主键数组</param>
+        @:/// <returns></returns>
+        @:[HttpPost("batchRemove")]
+        @:public async Task BatchRemove([FromBody] List<string> ids)
+        @:{
+@if(Model.DbLinkId != "0")
+{
+            @:var dbLink = await _dbLinkService.GetInfo("@(@Model.DbLinkId)");
+            @:_db.AddConnection(new ConnectionConfig()
+            @:{
+                @:ConfigId = dbLink.Id,
+                @:DbType = _dataBaseService.ToDbType(dbLink.DbType),
+                @:ConnectionString = _dataBaseService.ToConnectionString(dbLink),
+                @:InitKeyType = InitKeyType.Attribute,
+                @:IsAutoCloseConnection = true
+            @:});
+            @:_db.ChangeDatabase(dbLink.Id);
+}
+            @:var entitys = await _db.Queryable<@(@Model.MainTable)Entity>().In(it => it.@(@Model.PrimaryKey), ids).ToListAsync();
+            @:if (entitys.Count > 0)
+            @:{
+                @:try
+                @:{
+                    @://开启事务
+                    @:_db.BeginTran();
+
+                    @://批量删除@(@Model.BusName)
+                    @:await _db.Deleteable<@(@Model.MainTable)Entity>().In(d => d.@(@Model.PrimaryKey),ids).ExecuteCommandAsync();
+@foreach(var table in Model.TableRelations){
+@:
+                    @://清空子表数据
+                    @:await _db.Deleteable<@(@table.TableName)Entity>().In(u => u.@(@table.TableField),ids).ExecuteCommandAsync();
+}
+                    @://关闭事务
+                    @:_db.CommitTran();
+                @:}
+                @:catch (Exception)
+                @:{
+                    @://回滚事务
+                    @:_db.RollbackTran();
+                    @:throw JNPFException.Oh(ErrorCode.COM1002);
+                @:}
+            @:}
+        @:}
+}
+}
+    }
+}

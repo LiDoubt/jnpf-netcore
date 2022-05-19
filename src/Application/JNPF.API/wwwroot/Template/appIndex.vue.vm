@@ -1,0 +1,358 @@
+<template>
+	<view class="dynamicModel-list-v">
+		<view class="head-warp com-dropdown">
+			<u-dropdown class="u-dropdown" ref="uDropdown">
+				<u-dropdown-item title="排序">
+					<view class="dropdown-slot-content">
+						<view class="dropdown-slot-content-main">
+							<u-cell-group>
+								<u-cell-item @@click="cellClick(item)" :arrow="false" :title="item.label" v-for="(item, index) in sortOptions" :key="index" :title-style="{ color: sortValue == item.value ? '#2979ff' : '#606266' }">
+									<u-icon v-if="sortValue == item.value" name="checkbox-mark" color="#2979ff" size="32"></u-icon>
+								</u-cell-item>
+							</u-cell-group>
+						</view>
+						<view class="dropdown-slot-bg" @@click="$refs.uDropdown.close()"></view>
+					</view>
+				</u-dropdown-item>
+				<u-dropdown-item title="筛选">
+					<view class="dropdown-slot-content">
+						<view class="dropdown-slot-content-main search-main">
+							<view class="u-p-l-32 u-p-r-32 search-form">
+								<u-form :model="searchForm" ref="searchForm" :errorType="['toast']" label-position="left" label-width="150">									
+@*循环查询条件*@
+@foreach(var search in Model.SearchColumnDesign)
+{
+@switch(search.QueryControlsKey)
+{
+case "input":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+										<u-input v-model="searchForm.@(@search.LowerName)" placeholder="请输入@(@search.Label)" />
+									</u-form-item>
+break;
+case "numRange":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-num-range v-model="searchForm.@(@search.LowerName)" />
+                                    </u-form-item>
+break;
+case "switch":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <view class="u-flex u-form-item-switch">
+                                            <jnpf-switch v-model="searchForm.@(@search.LowerName)" />
+                                        </view>
+                                    </u-form-item>
+break;
+case "select":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-select v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" :options=" @(@search.LowerName)Options" :props="@(@search.LowerName)Props" />
+                                    </u-form-item>
+break;
+case "cascader":
+                                     <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-cascader v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" :options="@(@search.LowerName)Options" :props="@(@search.LowerName)Props" />
+                                    </u-form-item>
+break;
+case "time":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-time-range v-model="searchForm.@(@search.LowerName)" />
+                                    </u-form-item>
+break;
+case "date":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-date-range v-model="searchForm.@(@search.LowerName)" />
+                                    </u-form-item>
+break;
+case "comSelect":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-org-select type="organize" v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" />
+                                    </u-form-item>
+break;
+case "depSelect":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-org-select type="department" v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" />
+                                    </u-form-item>
+break;
+case "posSelect":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-org-select type="position" v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" />
+                                    </u-form-item>
+break;
+case "userSelect":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-org-select v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" />
+                                    </u-form-item>
+break;
+case "treeSelect":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-tree-select v-model="searchForm.@(@search.LowerName)" :options="@(@search.LowerName)Options" :props="@(@search.LowerName)Props" placeholder="请选择@(@search.Label)" />
+                                    </u-form-item>
+break;
+case "address":
+                                    <u-form-item label="@(@search.Label)" prop="@(@search.LowerName)">
+                                        <jnpf-city-select v-model="searchForm.@(@search.LowerName)" placeholder="请选择@(@search.Label)" :level="@(@search.Level)" />
+                                    </u-form-item>
+break;
+}
+}
+								</u-form>
+							</view>
+							<view class="buttom-actions">
+								<u-button class="buttom-btn" @@click="reset">重置</u-button>
+								<u-button class="buttom-btn" type="primary" @@click="closeDropdown">检索</u-button>
+							</view>
+						</view>
+						<view class="dropdown-slot-bg" @@click="$refs.uDropdown.close()"></view>
+					</view>
+				</u-dropdown-item>
+			</u-dropdown>
+			<view class="search-box">
+				<u-search placeholder="请输入关键词搜索" v-model="listQuery.keyword" height="72"
+                          :show-action="false" @@change="search" bg-color="#f0f2f6" shape="square">
+				</u-search>
+			</view>
+		</view>
+		<view class="list-warp">
+			<mescroll-uni ref="mescrollRef" @@init="mescrollInit" @@down="downCallback" @@up="upCallback" :fixed="false" :down="downOption" :up="upOption">
+				<view class="list">
+					<view class="list-box" v-for="(item, index) in list" :key="item.id">
+						<u-swipe-action :index="index" :show="item.show" @@click="handleClick" @@open="open" :options="options" @@content-click="goDetail(item.id)">
+							<view class="item">
+@foreach(var column in Model.ColumnDesign)
+{
+                                <view class="item-cell u-line-1">
+                                    <text>@(@column.Label)：</text>
+                                    <text>{{item.@(@column.LowerName)}}</text>
+                                </view>
+}
+							</view>
+						</u-swipe-action>
+					</view>
+				</view>
+			</mescroll-uni>
+		</view>
+		<view class="com-addBtn" @@click="goDetail()">
+			<u-icon name="plus" size="60" color="#fff" />
+		</view>
+	</view>
+</template>
+
+<script>
+	import {getDictionaryDataSelector,previewDataInterface} from '@@/api/common'
+    import resources from '@@/libs/resources.js'
+    import MescrollMixin from "@@/uni_modules/mescroll-uni/components/mescroll-uni/mescroll-mixins.js";
+	import request from '@@/utils/request'
+    export default {
+        mixins: [MescrollMixin],
+        data() {
+            return {
+                sortValue: '',
+                searchForm: {
+@foreach(var search in Model.SearchColumnDesign)
+{
+                    @:@(@search.LowerName):undefined,
+}
+				},
+                downOption: {
+                    use: true,
+                    auto: false
+                },
+                upOption: {
+                    page: {
+                        num: 0,
+                        size: 20,
+                        time: null
+                    },
+                    empty: {
+                        use: true,
+                        icon: resources.message.nodata,
+                        tip: "暂无数据",
+                        fixed: true,
+                        top: "300rpx",
+                        zIndex: 5
+                    },
+                    textNoMore: '没有更多数据',
+                    toTop: {
+                        bottom: 250
+                    }
+                },
+                list: [],
+                listQuery: {
+                    sort: 'desc',
+                    sidx: '@(@Model.DefaultSidx)',
+                    keyword: '',
+                    json: ''
+                },
+                options: [{
+                    text: '删除',
+                    style: {
+                        backgroundColor: '#dd524d'
+                    }
+                }],
+                sortOptions: [
+@foreach(var sort in Model.SearchColumnDesign)
+{
+                    @:{
+                        @:label: '@(@sort.Label)降序',
+                        @:sidx:  '@(@sort.LowerName)',
+                        @:value: '@(@sort.LowerName)desc',
+                        @:sort: 'desc'
+                    @:},
+}
+                ],
+@foreach(var item in @Model.OptionsList)
+{
+@if(item.IsIndex)
+{
+				@:@item.Content
+}
+@if(item.IsProps)
+{
+                @:@(@item.LowerName)Props:@(@item.Props),
+}
+}
+            }
+        },
+        created() {
+            uni.$on('refresh', () => {
+                this.list = [];
+                this.mescroll.resetUpScroll();
+            })
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && item.IsIndex)
+{
+			@:this.get@(@item.LowerName)Options();
+}
+}
+        },
+        beforeDestroy() {
+            uni.$off('refresh')
+        },
+        methods: {
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && item.IsIndex)
+{
+			@:get@(@item.LowerName)Options(){
+switch(@item.DataType)
+{
+case "dictionary":
+				@:getDictionaryDataSelector('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data.list
+	break;
+case "dynamic":
+				@:previewDataInterface('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data
+	break;
+}
+				@:});
+			@:},
+}
+}
+            upCallback(page) {
+                const query = {
+                    currentPage: page.num,
+                    pageSize: page.size,
+                    ...this.listQuery,
+                    ...this.searchForm
+                }
+                request({
+                    url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)',
+                    method: 'get',
+                    data: query,
+                }).then(res => {
+                    if (page.num == 1) this.list = [];
+@if(Model.HasPage)
+{
+                    @:const list = res.data.list.map(o => ({
+}
+else{
+                    @:const list = res.data.map(o => ({
+}
+                        show: false,
+                        ...o
+                    }));
+
+@if(Model.HasPage)
+{
+                    @:this.mescroll.endSuccess(res.data.list.length);
+}
+else
+{
+                    @:this.mescroll.endSuccess(res.data.length, false);
+}
+                    this.list = this.list.concat(list);
+                }).catch(() => {
+                    this.mescroll.endErr();
+                })
+            },
+            handleClick(index) {
+			    const item = this.list[index]
+                request({
+                    url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)/' + item.id,
+                    method: 'delete'
+                }).then(res => {
+                    uni.showToast({
+                        title: res.msg,
+                        complete: () => {
+                            this.$u.toast(res.msg)
+                            this.list.splice(index, 1)
+                        }
+                    })
+                })
+            },
+            open(index) {
+                this.list[index].show = true;
+                this.list.map((val, idx) => {
+                    if (index != idx) this.list[idx].show = false;
+                })
+            },
+            search() {
+                this.searchTimer && clearTimeout(this.searchTimer)
+                this.searchTimer = setTimeout(() => {
+                    this.list = [];
+                    this.mescroll.resetUpScroll();
+                }, 300)
+            },
+            goDetail(id) {
+                let query=id?'?id='+id:''
+                uni.navigateTo({
+                    url: './form' + query
+                })
+            },
+            cellClick(item) {
+                if (this.sortValue === item.value) return
+                this.listQuery.sort = item.sort
+                this.listQuery.sidx = item.sidx
+                this.sortValue = item.value
+                this.$refs.uDropdown.close();
+                this.$nextTick(() => {
+                    this.list = [];
+                    this.mescroll.resetUpScroll();
+                })
+            },
+            reset() {
+                this.$refs.searchForm.resetFields()
+            },
+            closeDropdown() {
+                this.$refs.uDropdown.close();
+                this.$nextTick(() => {
+                    this.list = [];
+                    this.mescroll.resetUpScroll();
+                })
+            }
+        }
+    }
+</script>
+
+<style lang="scss">
+    page {
+        background-color: #f0f2f6;
+        height: 100%;
+        /* #ifdef MP-ALIPAY */
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        /* #endif */
+    }
+</style>

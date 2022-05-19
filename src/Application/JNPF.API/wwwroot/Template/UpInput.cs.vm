@@ -1,0 +1,21 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace JNPF.@(@Model.NameSpace).Entitys.Dto.@Model.ClassName
+{
+    /// <summary>
+    /// @(@Model.BusName)更新输入参数
+    /// </summary>
+    public class @(@Model.MainTable)UpInput : @(@Model.ClassName)CrInput
+    {
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public @column.NetType @column.LowerColumnName { get; set; }
+        @:
+}
+}
+    }
+}

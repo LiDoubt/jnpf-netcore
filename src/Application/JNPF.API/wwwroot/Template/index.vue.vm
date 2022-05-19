@@ -1,0 +1,504 @@
+<template>
+	<div class="JNPF-common-layout">
+@if(Model.AllColumnDesign.type == 2)
+{
+		@:<div class="JNPF-common-layout-left">
+			@:<div class="JNPF-common-title">
+				@:<h2>@Model.AllColumnDesign.treeTitle</h2>
+			@:</div>
+			@:<el-tree :data="treeData" :props="treeProps" default-expand-all highlight-current ref="treeBox" :expand-on-click-node="false" @@node-click="handleNodeClick" class="JNPF-common-el-tree" node-key="@(@Model.AllColumnDesign.treePropsValue)">
+				@:<span class="custom-tree-node" slot-scope="{node,data}">
+					@:<i :class="data.icon"></i>
+					@:<span class="text">{{node.label}}</span>
+				@:</span>
+			@:</el-tree>
+		@:</div>
+}
+		<div class="JNPF-common-layout-center">
+			<el-row class="JNPF-common-search-box" :gutter="16">
+				<el-form @@submit.native.prevent>
+@foreach (var item in @Model.SearchColumnDesign)
+{
+@if(item.Index == 3)
+{
+					@:<template v-if="showAll">
+}
+					@:<el-col :span="6">
+						@:<el-form-item label="@(@item.Label)">
+@if(item.QueryControlsKey != null)
+{
+@switch(item.QueryControlsKey)
+{
+case "inputList":
+							@:<el-input v-model="query.@(@item.LowerName)" placeholder="@(@item.Label)" @(@item.Clearable)/>	
+	break;
+case "dateList":
+							@:<el-date-picker v-model="query.@(@item.LowerName)" start-placeholder="开始日期" end-placeholder="结束日期" value-format="timestamp" format="yyyy-MM-dd" type="daterange" />
+	break;
+case "selectList":
+							@:<el-select v-model="query.@(@item.LowerName)" placeholder="@(@item.Label)" @(@item.Clearable)>
+								@:<el-option v-for="(item, index) in @(@item.LowerName)Options" :key="index" :label="item.@(@item.Props.label)" :value="item.@(item.Props.value)"  />
+							@:</el-select>
+	break;
+case "timePickerList":
+							@:<el-time-picker v-model="query.@(@item.LowerName)" start-placeholder="开始时间" end-placeholder="结束时间" @(@item.Clearable)value-format="@(@item.ValueFormat)" format="@(@item.Format)" is-range />
+	break;
+case "numRangeList":
+							@:<num-range v-model="query.@(@item.LowerName)"></num-range>
+	break;
+case "datePickerList":
+							@:<el-date-picker v-model="query.@(@item.LowerName)" type="@(@item.Type)range" value-format="@(@item.ValueFormat)" format="@(@item.Format)" start-placeholder="开始日期" end-placeholder="结束日期">
+							@:</el-date-picker>
+	break;
+case "userSelectList":
+							@:<userSelect v-model="query.@(@item.LowerName)" placeholder="请选择@(@item.Label)" />
+	break;
+case "comSelectList":
+							@:<comSelect v-model="query.@(@item.LowerName)" placeholder="请选择@(@item.Label)" />
+	break;
+case "depSelectList":
+							@:<depSelect v-model="query.@(@item.LowerName)" placeholder="请选择@(@item.Label)" />
+	break;
+case "posSelectList":
+							@:<posSelect v-model="query.@(@item.LowerName)" placeholder="请选择@(@item.Label)" />
+	break;
+case "useCascaderList":
+							@:<el-cascader v-model="query.@(@item.LowerName)" :options="@(@item.LowerName)Options" @(@item.Clearable):show-all-levels="@(@item.ShowAllLevels)" :props="@(@item.LowerName)Props" placeholder="请选择@(@item.Label)"></el-cascader>
+	break;
+case "JNPFAddressList":
+							@:<JNPFAddress v-model="query.@(@item.LowerName)" placeholder="请选择@(@item.Label)" level="@(@item.Level)" @(@item.Clearable)/>
+	break;
+case "treeSelectList":
+							@:<JNPF-TreeSelect v-model="query.@(@item.LowerName)" placeholder="请选择@(@item.Label)" :options="@(@item.LowerName)Options" @(@item.Clearable)/>
+	break;
+}
+}
+else
+{
+						@:<@(@item.Tag) v-model="query.@(@item.LowerName)" placeholder="@(@item.Label)" @(@item.Clearable)/>
+}
+						@:</el-form-item>
+					@:</el-col>
+}
+@if(Model.SearchColumnDesign.Count >= 4)
+{
+					@:</template>
+}
+					<el-col :span="6">
+						<el-form-item>
+							<el-button type="primary" icon="el-icon-search" @@click="search()">查询</el-button>
+							<el-button icon="el-icon-refresh-right" @@click="reset()">重置</el-button>
+@if(Model.SearchColumnDesign.Count >= 4)
+{
+							@:<el-button type="text" icon="el-icon-arrow-down" @@click="showAll=true" v-if="!showAll">展开</el-button>
+							@:<el-button type="text" icon="el-icon-arrow-up" @@click="showAll=false" v-else>收起</el-button>
+}
+						</el-form-item>
+					</el-col>
+				</el-form>
+			</el-row>
+			<div class="JNPF-common-layout-main JNPF-flex-main">
+				<div class="JNPF-common-head">
+					<div>
+@foreach (var item in @Model.TopButtonDesign)
+{
+@if(Model.AllColumnDesign.useBtnPermission)
+{
+						@:<el-button type="@(@item.Type)" icon="@(@item.Icon)" @@click="@(@item.Method)" v-has="'btn_@(@item.Value)'">@(@item.Label)</el-button>
+}
+else
+{
+						@:<el-button type="@(@item.Type)" icon="@(@item.Icon)" @@click="@(@item.Method)">@(@item.Label)</el-button>
+}
+}
+					</div>
+					<div class="JNPF-common-head-right">
+						<el-tooltip effect="dark" content="刷新" placement="top">
+							<el-link icon="icon-ym icon-ym-Refresh JNPF-common-head-icon" :underline="false" @@click="reset()" />
+						</el-tooltip>
+						<screenfull isContainer />
+					</div>
+				</div>
+@if(Model.IsBatchRemoveDel)
+{
+@if(Model.IsSort)
+{
+				@:<JNPF-table v-loading="listLoading" :data="list" @@sort-change='sortChange' has-c @@selection-change="handleSelectionChange">
+}
+else
+{
+                @:<JNPF-table v-loading="listLoading" :data="list" has-c @@selection-change="handleSelectionChange">
+}
+}
+else
+{
+@if(Model.IsSort)
+{
+				@:<JNPF-table v-loading="listLoading" :data="list" @@sort-change='sortChange'>
+}
+else
+{
+                @:<JNPF-table v-loading="listLoading" :data="list">
+}
+}
+@foreach (var item in @Model.ColumnDesign)
+{
+@if(item.IsAutomatic)
+{
+@if(Model.AllColumnDesign.useColumnPermission)
+{
+					@:<el-table-column label="@(@item.Label)" @(@item.Width)prop="@(@item.LowerName)" align="@(@item.Align)" @(@item.IsSort)v-if="jnpf.hasP('@(@item.LowerName)')">
+							@:<template slot-scope="scope">{{ scope.row.@(@item.LowerName) | dynamicText(@(@item.LowerName)Options) }}</template>
+					@:</el-table-column>
+}
+else
+{
+					@:<el-table-column label="@(@item.Label)" @(@item.Width)prop="@(@item.LowerName)" @(@item.IsSort)align="@(@item.Align)">
+							@:<template slot-scope="scope">{{ scope.row.@(@item.LowerName) | dynamicText(@(@item.LowerName)Options) }}</template>
+					@:</el-table-column>
+}
+}
+else
+{
+@if(Model.AllColumnDesign.useColumnPermission)
+{
+					@:<el-table-column prop="@(@item.LowerName)" label="@(@item.Label)" @(@item.IsSort)align="@(@item.Align)" @(@item.Width)v-if="jnpf.hasP('@(@item.LowerName)')" />
+}
+else
+{
+					@:<el-table-column prop="@(@item.LowerName)" label="@(@item.Label)" @(@item.IsSort)align="@(@item.Align)" @(@item.Width)/>
+}
+}
+}
+					<el-table-column label="操作" fixed="right" width="@(@Model.AllColumnDesign.columnBtnsList.Count * 50)">
+							<template slot-scope="scope">
+@foreach (var item in @Model.ColumnButtonDesign){
+@if(Model.AllColumnDesign.useBtnPermission)
+{
+							@:<el-button type="text" @@click="@(@item.Method)" @(@item.Type)v-has="'btn_@(@item.Value)'">@(@item.Label)</el-button>
+}
+else
+{
+							@:<el-button type="text" @@click="@(@item.Method)" @(@item.Type)>@(@item.Label)</el-button>
+}
+}
+						</template>
+					</el-table-column>
+				</JNPF-table>
+@if(Model.HasPage)
+{
+                @:<pagination :total="total" :page.sync="listQuery.currentPage" :limit.sync="listQuery.pageSize" @@pagination="initData" />
+}                
+            </div>
+        </div>
+		<JNPF-Form v-if="formVisible" ref="JNPFForm" @@refresh="refresh" />
+		<ExportBox v-if="exportBoxVisible" ref="ExportBox" @@download="download" />
+	</div>
+</template>
+<script>
+    import request from '@@/utils/request'
+    import { getDictionaryDataSelector } from '@@/api/systemData/dictionary'
+    import JNPFForm from './Form'
+    import ExportBox from './ExportBox'
+    import { previewDataInterface } from '@@/api/systemData/dataInterface'
+	export default {
+        components: { JNPFForm, ExportBox },
+        data() {
+            return {
+@if(Model.AllColumnDesign.searchList.Count >= 3){
+                @:showAll: false,
+}
+				query: {
+@foreach (var item in @Model.SearchColumnDesign)
+{
+                    @:@(@item.LowerName):undefined,
+}
+@if(!Model.IsExistQuery && Model.Type == 2)
+{
+                    @:@(Model.TreeRelation):undefined,
+}
+				},
+@if(Model.AllColumnDesign.type == 2)
+{
+				@:treeProps: {
+                    @:children: '@(@Model.AllColumnDesign.treePropsChildren)',
+                    @:label: '@(@Model.AllColumnDesign.treePropsLabel)',
+					@:value: '@(@Model.AllColumnDesign.treePropsValue)',
+                @:},
+}
+                list: [],
+                listLoading: true,
+                multipleSelection: [], total: 0,
+                listQuery: {
+@if(Model.AllColumnDesign.hasPage)
+{
+                    @:currentPage: 1,
+                    @:pageSize: 20,
+}
+					sort: "desc",
+                    sidx: "",
+                },
+                formVisible: false,
+                exportBoxVisible: false,
+@if(Model.AllColumnDesign.type == 2)
+{
+                @:treeData:[],
+}
+                columnList: [
+@foreach (var item in @Model.ColumnDesign)
+{
+                    @:{ prop: '@(@item.LowerName)', label: '@(@item.Label)' },
+}
+				],
+@foreach(var item in @Model.OptionsList)
+{
+@if(item.IsIndex)
+{
+				@:@item.Content
+}
+@if(item.IsProps)
+{
+                @:@(@item.LowerName)Props:@(@item.Props),
+}
+}
+			}
+        },
+		computed: {},
+		created() {
+@if(Model.AllColumnDesign.type == 2)
+{
+            @:this.getTreeView()
+}
+else{
+			@:this.initData()
+}
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && item.IsIndex)
+{
+			@:this.get@(@item.LowerName)Options();
+}
+}
+		},
+		methods: {
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && item.IsIndex)
+{
+			@:get@(@item.LowerName)Options(){
+switch(@item.DataType)
+{
+case "dictionary":
+				@:getDictionaryDataSelector('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data.list
+	break;
+case "dynamic":
+				@:previewDataInterface('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data
+	break;
+}
+				@:});
+			@:},
+}
+}
+@if(Model.IsSort)
+{
+                @:sortChange({ column, prop, order }) {
+                    @:this.listQuery.sort = order == 'ascending' ? 'asc' : 'desc'
+                    @:this.listQuery.sidx = !order ? '' : prop
+                    @:this.initData()
+                @:},
+}
+			initData() {
+                this.listLoading = true;
+                let _query = {
+                    ...this.listQuery,
+                    ...this.query
+                };
+                let query = {}
+                for (let key in _query) {
+                    if (Array.isArray(_query[key])) {
+                        query[key] = _query[key].join()
+                    } else {
+                        query[key] = _query[key]
+                    }
+                }
+                request({
+                    url: `/api/@(@Model.NameSpace)/@(@Model.ClassName)`,
+                    method: 'GET',
+                    data: query
+                }).then(res => {
+@if(Model.AllColumnDesign.hasPage)
+{
+                    @:this.list = res.data.list
+                    @:this.total = res.data.pagination.total
+}
+else{
+                    @:this.list = res.data
+}
+                    this.listLoading = false
+                })
+            },
+@if(Model.IsRemoveDel)
+{
+			@:handleDel(id) {
+                @:this.$confirm('此操作将永久删除该数据, 是否继续?', '提示', {
+                    @:type: 'warning'
+                @:}).then(() => {
+                    @:request({
+                        @:url: `/api/@(@Model.NameSpace)/@(@Model.ClassName)/${id}`,
+                        @:method: 'DELETE'
+                    @:}).then(res => {
+                        @:this.$message({
+                            @:type: 'success',
+                            @:message: res.msg,
+                            @:onClose: () => {
+                                @:this.initData()
+                            @:}
+                        @:});
+                    @:})
+                @:}).catch(() => {
+                @:});
+            @:},
+}
+@if(Model.IsBatchRemoveDel)
+{
+			@:handleSelectionChange(val) {
+                @:const res = val.map(item => item.id)
+                @:this.multipleSelection = res
+            @:},
+            @:handleBatchRemoveDel() {
+                @:if (!this.multipleSelection.length) {
+                    @:this.$message({
+                        @:type: 'error',
+                        @:message: '请选择一条数据',
+                        @:duration: 1500,
+                    @:})
+                    @:return
+                @:}
+                @:const ids = this.multipleSelection
+                @:this.$confirm('您确定要删除这些数据吗, 是否继续？', '提示', {
+                    @:type: 'warning'
+                @:}).then(() => {
+                    @:request({
+                        @:url: `/api/@(@Model.NameSpace)/@(@Model.ClassName)/batchRemove`,
+                        @:method: 'POST',
+                        @:data: ids ,
+                    @:}).then(res => {
+                        @:this.$message({
+                            @:type: 'success',
+                            @:message: res.msg,
+                            @:onClose: () => {
+                                @:this.initData()
+                            @:}
+                        @:});
+                    @:})
+                @:}).catch(() => { })
+            @:},
+}
+			addOrUpdateHandle(id, isDetail) {
+                this.formVisible = true
+                this.$nextTick(() => {
+                    this.$refs.JNPFForm.init(id, isDetail)
+                })
+            },
+@if(Model.IsDownload)
+{
+			@:exportData() {
+                @:this.exportBoxVisible = true
+                @:this.$nextTick(() => {
+                    @:this.$refs.ExportBox.init(this.columnList)
+                @:})
+            @:},
+            @:download(data) {
+                @:let query = { ...data, ...this.listQuery, ...this.query }
+                @:request({
+                    @:url: `/api/@(@Model.NameSpace)/@(@Model.ClassName)/Actions/Export`,
+                    @:method: 'GET',
+                    @:data: query
+                @:}).then(res => {
+                    @:if (!res.data.url) return
+                    @:window.location.href = this.define.comUrl + res.data.url
+                    @:this.$refs.ExportBox.visible = false
+                    @:this.exportBoxVisible = false
+                @:})
+            @:},
+}
+@if(Model.AllColumnDesign.type == 2)
+{
+            @:handleNodeClick(data){
+			    @:this.treeActiveId = data.@(@Model.AllColumnDesign.treePropsValue)
+				@:for (let key in this.query) {
+				    @:this.query[key] = undefined
+				@:}
+				@:this.query.@(Model.TreeRelation) = data.@(@Model.AllColumnDesign.treePropsValue)
+				@:this.listQuery = {
+				    @:currentPage: 1,
+					@:pageSize: @(@Model.AllColumnDesign.pageSize),
+					@:sort: "@(@Model.AllColumnDesign.sort)",
+					@:sidx: "@(@Model.DefaultSidx)",
+				@:}
+				@:this.initData()
+			@:},
+			@:getTreeView() {
+switch(@Model.AllColumnDesign.treeDataSource)
+{
+case "dictionary":
+                @:getDictionaryDataSelector('@(@Model.AllColumnDesign.treeDictionary)').then(res => {
+				    @:this.treeData = res.data.list
+					@:this.initData()
+				@:})
+    break;
+case "department":
+                @:this.$store.dispatch('generator/getDepTree').then(res => {
+                    @:this.treeData = res
+                    @:this.initData()
+                @:})
+    break;
+case "organize":
+                @:this.$store.dispatch('generator/getCompanyTree').then(res => {
+                    @:this.treeData = res
+                    @:this.initData()
+                @:})
+    break;
+case "api":
+                @:previewDataInterface('@(@Model.AllColumnDesign.treePropsUrl)').then(res => {
+                    @:if (Array.isArray(res.data)) {
+                        @:this.treeData = res.data
+                    @:} else {
+                        @:this.treeData = []
+                    @:}
+                    @:this.initData()
+                @:})
+    break;
+}
+			@:},
+}
+			search() {
+                this.listQuery = {
+                    currentPage: 1,
+                    pageSize: @(@Model.AllColumnDesign.pageSize),
+                    sort: "@(@Model.AllColumnDesign.sort)",
+                    sidx: "@(@Model.DefaultSidx)",
+                }
+                this.initData()
+            },
+            refresh(isrRefresh) {
+                this.formVisible = false
+                if (isrRefresh) this.reset()
+            },
+            reset() {
+                for (let key in this.query) {
+                    this.query[key] = undefined
+                }
+                this.listQuery = {
+                    currentPage: 1,
+                    pageSize: @(@Model.AllColumnDesign.pageSize),
+                    sort: "@(@Model.AllColumnDesign.sort)",
+                    sidx: "@(@Model.DefaultSidx)",
+                }
+                this.initData()
+            }
+		}
+    }
+</script>

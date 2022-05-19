@@ -1,0 +1,40 @@
+﻿using System;
+
+namespace JNPF.@(@Model.NameSpace).Entitys.Dto.@Model.ClassName
+{
+    /// <summary>
+    /// @(@Model.BusName)输入参数
+    /// </summary>
+    public class @(@Model.ClassName)ListOutput
+    {
+@foreach (var column in Model.TableField){
+if (@column.PrimaryKey){
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public @column.NetType @column.LowerColumnName { get; set; }
+        @:
+}
+else if (@column.IsShow){
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public @column.NetType @column.LowerColumnName { get; set; }
+        @:
+}
+}
+@if(Model.IsMainTable && Model.WebType == 3)
+{
+        @:/// <summary>
+        @:/// 流程状态
+        @:/// </summary>
+        @:public int flowState { get; set; }
+        @:
+        @:/// <summary>
+        @:/// 流程引擎ID
+        @:/// </summary>
+        @:public string flowId { get; set; }
+        @:
+}
+    }
+}

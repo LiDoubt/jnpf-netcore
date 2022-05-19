@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\JNPF.Common.Core\JNPF.Common.Core.csproj" />
+    <ProjectReference Include="..\..\WorkFlow\JNPF.WorkFlow.Interfaces\JNPF.WorkFlow.Interfaces.csproj" />
+    <ProjectReference Include="..\JNPF.VisualDev.Run.Interfaces\JNPF.VisualDev.Run.Interfaces.csproj" />
+  </ItemGroup>
+
+</Project>

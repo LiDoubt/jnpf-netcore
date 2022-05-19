@@ -1,0 +1,138 @@
+﻿using JNPF.Common.Helper;
+@*是否需要上传文件引用*@
+@if(Model.IsUplpad)
+{
+@:using JNPF.Common.Model;
+}
+using JNPF.@(@Model.NameSpace).Entitys.Dto.@(@Model.ClassName);
+using Mapster;
+using System.Collections.Generic;
+
+namespace JNPF.@(@Model.NameSpace).Entitys.Mapper.@Model.MainTable
+{
+	public class Mapper : IRegister
+	{
+		public void Register(TypeAdapterConfig config)
+		{
+@*判断是否需要映射*@
+@if(Model.IsMapper)
+{
+@*判断WebType 1-纯表单,2-常规表单,3-流程列表单*@
+@if(Model.WebType == 1)
+{
+@{GetCrInputToEntity(); }
+}
+else if(Model.WebType == 2)
+{
+@{GetCrInputToEntity(); }
+@{GetEntityToInfoOutput();}
+}
+else if(Model.WebType == 3 || Model.Type == 3)
+{
+@{GetCrInputToEntity(); }
+@{GetEntityToInfoOutput();}
+@{GetEntityToCrInput();}
+}
+}
+		}
+	}
+}
+@{
+	@*新增输入转实体*@
+	void GetCrInputToEntity()
+	{	
+			@:config.ForType<@(@Model.MainTable)CrInput, @(@Model.MainTable)Entity>()
+@*循环表字段*@
+@foreach (var column in Model.TableField)
+{
+@*判断jnpfKey不为空*@
+if (@column.jnpfKey != null)
+{
+switch(column.jnpfKey)
+{
+@*下拉框控件*@
+case "select":
+@*是否为多选*@
+@if(column.IsMultiple)
+{
+				@:.Map(dest => dest.@(@column.ColumnName), src => src.@(@column.LowerColumnName).ToJson())
+}
+break;
+@*复选框、级联、省市区、图片上传、文件上传*@
+case "checkbox":
+case "cascader":
+case "address":
+case "uploadImg":
+case "uploadFz":
+				@:.Map(dest => dest.@(@column.ColumnName), src => src.@(@column.LowerColumnName).ToJson())
+break;
+}
+}
+}
+			@:;
+	}
+}
+@{
+	@*实体转详情输出*@
+	void GetEntityToInfoOutput()
+	{
+			@:config.ForType<@(@Model.MainTable)Entity, @(@Model.MainTable)InfoOutput>()
+@foreach (var column in Model.TableField)
+{
+if (@column.jnpfKey != null)
+{
+switch(column.jnpfKey)
+{
+case "select":
+@if(column.IsMultiple)
+{
+				@:.Map(dest => dest.@(@column.LowerColumnName), src => src.@(@column.ColumnName).ToObject<List<string>>())
+}
+break;
+case "checkbox":
+case "cascader":
+case "address":
+				@:.Map(dest => dest.@(@column.LowerColumnName), src => src.@(@column.ColumnName).ToObject<List<string>>())
+break;
+case "uploadImg":
+case "uploadFz":
+				@:.Map(dest => dest.@(@column.LowerColumnName), src => src.@(@column.ColumnName).ToObject<List<FileControlsModel>>())
+break;
+}
+}
+}
+			@:;
+	}
+}
+@{
+	@*实体转创建输入*@
+	void GetEntityToCrInput()
+	{
+			@:config.ForType<@(@Model.MainTable)Entity, @(@Model.MainTable)CrInput>()
+@foreach (var column in Model.TableField)
+{
+if (@column.jnpfKey != null)
+{
+switch(column.jnpfKey)
+{
+case "select":
+@if(column.IsMultiple)
+{
+				@:.Map(dest => dest.@(@column.LowerColumnName), src => src.@(@column.ColumnName).ToObject<List<string>>())
+}
+break;
+case "checkbox":
+case "cascader":
+case "address":
+				@:.Map(dest => dest.@(@column.LowerColumnName), src => src.@(@column.ColumnName).ToObject<List<string>>())
+break;
+case "uploadImg":
+case "uploadFz":
+				@:.Map(dest => dest.@(@column.LowerColumnName), src => src.@(@column.ColumnName).ToObject<List<FileControlsModel>>())
+break;
+}
+}
+}
+			@:;
+	}
+}

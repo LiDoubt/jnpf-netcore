@@ -1,0 +1,38 @@
+﻿{
+  "flowEngine": {
+    "EnCode": "@(@Model.EnCode)",
+    "FullName": "@(@Model.FullName)",
+    "Type": 1,
+    "Category": "@(@Model.Category)",
+    "Form": null,
+    "VisibleType": 0,
+    "Icon": "icon-ym icon-ym-node",
+    "IconBackground": "#008cff",
+    "Version": null,
+    "FlowTemplateJson": @(@Model.FlowTemplateJson),
+    "Description": null,
+    "SortCode": null,
+    "FormTemplateJson": "[
+@foreach(var item in Model.FormList)
+{
+        @:{\"filedName\":\"@(@item.Placeholder)\",\"filedId\":\"@(@item.LowerName)\",\"required\":@(@item.Required ==true ? "true":" false")},
+}
+    ]",
+    "FormType": 1,
+    "Tables": @(@Model.Tables),
+    "DbLinkId": "@(@Model.DbLinkId)",
+    "AppFormUrl": null,
+    "FormUrl": "extend/@(@Model.MianTable)/Form.vue",
+    "CreatorTime": 1626747375567,
+    "CreatorUserId": "admin",
+    "EnabledMark": 1,
+    "LastModifyTime": null,
+    "LastModifyUserId": null,
+    "DeleteMark": null,
+    "DeleteTime": null,
+    "DeleteUserId": null,
+    "Id": "@(@Model.FlowId)"
+  },
+  "visibleList": [
+  ]
+}

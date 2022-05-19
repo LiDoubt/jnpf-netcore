@@ -1,0 +1,717 @@
+<template>
+@switch(Model.PopupType)
+{
+case "fullScreen":
+	@:<transition name="el-zoom-in-center">
+		@:<div class="JNPF-preview-main">
+			@:<div class="JNPF-common-page-header">
+				@:<el-page-header @@back="goBack" :content="!dataForm.id ? '新建' : isDetail ? '详情' : '编辑'"/>
+				@:<div class="options">
+					@:<el-button type="primary" @@click="dataFormSubmit()" v-if="!isDetail">@(@Model.FormDataModel.confirmButtonText)</el-button>
+					@:<el-button @@click="goBack">@(@Model.FormDataModel.cancelButtonText)</el-button>
+				@:</div>
+			@:</div>
+			@:<el-row :gutter="15"  class="@(@Model.FormDataModel.formStyle )main" :style="{margin: '0 auto',width:'@(@Model.FormDataModel.fullScreenWidth)'}">
+@{ GenerateFormControls(); }
+			@:</el-row>
+		@:</div>
+	@:</transition>
+	break;
+case "general":
+	@:<el-dialog :title="!dataForm.id ? '新建' :  isDetail ? '详情':'编辑'" :close-on-click-modal="false" :visible.sync="visible" class="JNPF-dialog JNPF-dialog_center" lock-scroll width="@(@Model.FormDataModel.generalWidth)">
+		@:<el-row :gutter="15" class="@(@Model.FormDataModel.formStyle)" >
+@{ GenerateFormControls(); }
+		@:</el-row>
+		@:<span slot="footer" class="dialog-footer">
+			@:<el-button @@click="visible = false">@(@Model.FormDataModel.cancelButtonText)</el-button>
+			@:<el-button type="primary" @@click="dataFormSubmit()" v-if="!isDetail">@(@Model.FormDataModel.confirmButtonText)</el-button>
+		@:</span>
+	@:</el-dialog>
+	break;
+}
+</template>
+<script>
+	import request from '@@/utils/request'
+	import { getDictionaryDataSelector } from '@@/api/systemData/dictionary'
+	import { previewDataInterface } from '@@/api/systemData/dataInterface'
+	export default {
+		components: {},
+		props: [],
+		data() {
+			return {
+				loading: false,
+				visible: false,
+				isDetail: false,
+				dataForm: {
+					@(@Model.PrimaryKey):'',
+@foreach(var item in Model.FormList)
+{
+@if(item.jnpfKey == "checkbox" || item.jnpfKey == "cascader" || item.jnpfKey == "uploadImg" || item.jnpfKey == "uploadFz" || item.jnpfKey == "address")
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):[],
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+else if(item.jnpfKey == "radio")
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+else if(item.jnpfKey == "select")
+{
+@if(item.Multiple)
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):[],
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+else
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+}
+else if(item.jnpfKey == "table")
+{
+					@:@(@item.LowerName)List:[],
+}
+else 
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+switch(item.jnpfKey)
+{
+case "numInput":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+case "date":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+case "rate":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+case "slider":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+default:
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}	
+	break;
+}
+}					
+}
+}
+				},
+				rules: {
+@foreach(var item in Model.FormList)
+{
+@if(item.Required || (item.RegList!=null && item.RegList.Count > 0))
+{
+					@:@(@item.LowerName):[
+@if(item.Required)
+{
+						@:{
+							@:required:true,
+							@:message:'请输入@(@item.Placeholder)',
+@if(item.Trigger.Contains("["))
+{
+							@:trigger:@(@item.Trigger)
+}
+else
+{
+							@:trigger:'@(@item.Trigger)'
+}
+							
+						@:},
+}
+@if(item.RegList!=null && item.RegList.Count > 0)
+{
+@foreach(var items in item.RegList)
+{
+						@:{
+							@:pattern:@(@items.pattern),
+							@:message:'@(@items.message)',
+if(item.Trigger.Contains("["))
+{
+							@:trigger:@(@item.Trigger)
+}
+else
+{
+							@:trigger:'@(@item.Trigger)'
+}
+						@:},
+}
+}
+					@:],
+}
+}
+				},
+@foreach(var item in Model.OptionsList)
+{
+@if(item.jnpfKey == "collapse")
+{
+				@:@(@item.Name):@(@item.Content),
+}
+else if(item.jnpfKey == "tab")
+{
+				@:@(@item.Name):"@(@item.Content)",
+}
+else{
+@if(item.IsProps)
+{
+				@:@(@item.LowerName)Props:@(item.Props),
+}
+				@:@item.Content
+}				
+}
+			}
+		},
+		computed: {},
+        watch: {},
+        created() {
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && (item.IsChildren || item.IsIndex))
+{
+			@:this.get@(@item.LowerName)Options();
+}
+}
+@if(Model.WebType == 1)
+{
+			@:this.init();
+}
+		},
+		mounted() {
+        },
+		methods: {
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && item.DictionaryType !=null)
+{
+			@:get@(@item.LowerName)Options(){
+switch(@item.DataType)
+{
+case "dictionary":
+				@:getDictionaryDataSelector('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data.list
+	break;
+case "dynamic":
+				@:previewDataInterface('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data
+	break;
+}
+				@:});
+			@:},
+}
+}
+			goBack() {
+                this.$emit('refresh')
+            },
+			init(id, isDetail) {
+				this.dataForm.@(@Model.PrimaryKey) = id || 0;
+                this.visible = true;
+                this.isDetail = isDetail || false;
+				this.$nextTick(() => {
+					this.$refs['@(@Model.FormDataModel.formRef)'].resetFields();
+					if (this.dataForm.@(@Model.PrimaryKey)) {
+						request({
+							url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)/' + this.dataForm.@(@Model.PrimaryKey),
+							method: 'get'
+						}).then(res =>{
+							this.dataForm = res.data;
+@foreach(var item in Model.FormList)
+{
+@if(item.jnpfKey == "checkbox" || item.jnpfKey == "cascader" || item.jnpfKey == "uploadImg" || item.jnpfKey == "uploadFz" || item.jnpfKey == "address")
+{
+							@:if(!this.dataForm.@(@item.LowerName))this.dataForm.@(@item.LowerName)=[];
+}
+}
+						})
+					}
+				})
+			},
+			dataFormSubmit() {
+				this.$refs['@(@Model.FormDataModel.formRef)'].validate((valid) => {
+                    if (valid) {
+                        if (!this.dataForm.id) {
+                            request({
+                                url: `/api/@(@Model.NameSpace)/@(@Model.ClassName)`,
+                                method: 'post',
+                                data: this.dataForm,
+                            }).then((res) => {
+                                this.$message({
+                                    message: res.msg,
+                                    type: 'success',
+                                    duration: 1000,
+                                    onClose: () => {
+                                        this.visible = false,
+                                            this.$emit('refresh', true)
+                                    }
+                                })
+                            })
+                        } else {
+                            request({
+                                url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)/' + this.dataForm.id,
+                                method: 'PUT',
+                                data: this.dataForm
+                            }).then((res) => {
+                                this.$message({
+                                    message: res.msg,
+                                    type: 'success',
+                                    duration: 1000,
+                                    onClose: () => {
+                                        this.visible = false
+                                        this.$emit('refresh', true)
+                                    }
+                                })
+                            })
+                        }
+                    }
+                })
+			},
+@foreach(var item in Model.FormList)
+{
+@if(item.jnpfKey == "table")
+{
+			@:addHandle@(@item.Name)EntityList() {
+				@:let item = {
+@foreach(var children in item.ChildrenList)
+{
+@if(children.jnpfKey == "checkbox" || children.jnpfKey == "cascader" || children.jnpfKey == "uploadImg" || children.jnpfKey == "uploadFz" || children.jnpfKey == "address")
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):[],
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+else if(children.jnpfKey == "radio")
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+else if(children.jnpfKey == "select")
+{
+@if(children.Multiple)
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):[],
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+else
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+}
+else 
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+switch(children.jnpfKey)
+{
+case "numInput":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+case "date":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+case "rate":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+case "slider":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+default:
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}	
+	break;
+}
+}					
+}
+}
+				@:}
+				@:this.dataForm.@(@item.LowerName)List.push(item)
+			@:},
+			@:handleDel@(@item.Name)EntityList(index) {
+				@:this.dataForm.@(@item.LowerName)List.splice(index, 1);
+			@:},
+}
+}
+		}
+	}
+</script>
+@{
+	void GenerateFormControls()
+	{
+				<el-form ref="@(@Model.FormDataModel.formRef)" :model="@(@Model.FormDataModel.formModel)" size="@(@Model.FormDataModel.size)" label-width="@(@Model.FormDataModel.labelWidth)px" label-position="@(@Model.FormDataModel.labelPosition)" :disabled="!!isDetail" :rules="@(@Model.FormDataModel.formRules)">
+@foreach(var item in Model.FormAllContols)
+{
+@*栅格布局*@
+@if(item.jnpfKey == "row")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-row :gutter="@(@item.Gutter)">
+@{GenerateFormChildrenControls(item.Children,item.Gutter);}
+						@:</el-row>
+					@:</el-col>
+}
+else if(item.jnpfKey == "table")
+{
+@if(Model.AllColumnDesign.useFormPermission)
+{
+					@:<el-col :span="@(@item.Span)" v-if="jnpf.hasFormP('@(@item.LowerChildTableName)List')">
+}
+else
+{
+					@:<el-col :span="@(@item.Span)">
+}
+						@:<el-form-item label-width="0">
+@if(item.ShowTitle)
+{
+							@:<div class="JNPF-common-title">
+								@:<h2>@(@item.Label)</h2>
+							@:</div>
+}
+							@:<el-table :data="dataForm.@(@item.LowerChildTableName)List" size='mini'>
+								@:<el-table-column type="index" width="50" label="序号" align="center" />
+@foreach (var childrens in item.Children)
+{
+								@:<el-table-column prop="@(@childrens.LowerName)" @(@childrens.ColumnWidth)label="@(@childrens.Label)">
+									@:<template slot-scope="scope">
+@if(childrens.jnpfKey == "select")
+{
+										@:<@(@childrens.Tag) v-model="scope.row.@(@childrens.LowerName)" @(@childrens.MainProps)@(@childrens.Options)@(@childrens.ShowAllLevels)@(@childrens.Separator)@(@childrens.Placeholder)@(@childrens.Clearable)@(@childrens.Readonly)@(@childrens.Disabled)@(@childrens.ShowWordLimit)@(@childrens.Style)@(@childrens.Type)@(@childrens.Format)@(@childrens.ValueFormat)@(@childrens.AutoSize)@(@childrens.Multiple)>
+											@:<el-option v-for="(item, index) in @(@childrens.LowerName)Options" :key="index" :label="item.@(@childrens.Props.label)" :value="item.@(@childrens.Props.value)" :disabled="item.disabled"></el-option>
+										@:</@(@childrens.Tag)>
+}
+else
+{
+										@:<@(@childrens.Tag) v-model="scope.row.@(@childrens.LowerName)" @(@childrens.Placeholder)@(@childrens.Clearable)@(@childrens.Readonly)@(@childrens.Disabled)@(@childrens.ShowWordLimit)@(@childrens.Style)@(@childrens.Type)@(@childrens.Format)@(@childrens.ValueFormat)@(@childrens.AutoSize)@(@childrens.Multiple)@(@childrens.Size)@(@childrens.MainProps)@(@childrens.Options)@(@childrens.ShowAllLevels)@(@childrens.Separator)></@(@childrens.Tag)>
+}
+									@:</template>
+								@:</el-table-column>
+}
+								@:<el-table-column label="操作" width="50">
+									@:<template slot-scope="scope">
+										@:<el-button size="mini" type="text" class="JNPF-table-delBtn" @@click="handleDel@(@item.ChildTableName)EntityList(scope.$index)">删除</el-button>
+									@:</template>
+								@:</el-table-column>
+							@:</el-table>
+							@:<div class="table-actions" @@click="addHandle@(@item.ChildTableName)EntityList()">
+								@:<el-button type="text" icon="el-icon-plus">新增</el-button>
+							@:</div>
+						@:</el-form-item>
+					@:</el-col>
+}
+else if(item.jnpfKey == "card")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-card class="mb-20" shadow="@(@item.Shadow)">
+@{GenerateFormChildrenControls(item.Children,item.Gutter);}
+						@:</el-card>
+					@:</el-col>
+}
+else if(item.jnpfKey == "collapse")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-collapse :accordion="@(@item.Accordion)" v-model="@(@item.Name)" class="mb-20">
+@foreach(var collapse in item.Children)
+{
+							@:<el-collapse-item title="@(@collapse.Title)" name="@(@collapse.Name)">
+@{GenerateFormChildrenControls(collapse.Children,item.Gutter);}
+							@:</el-collapse-item>
+}
+						@:</el-collapse>
+					@:</el-col>
+}
+else if(item.jnpfKey == "tab")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-tabs type="@(@item.Type)" tab-position="@(@item.TabPosition)" v-model="@(@item.Name)" class="mb-10">
+@foreach(var collapse in item.Children)
+{
+							@:<el-tab-pane label="@(@collapse.Title)">
+@{GenerateFormChildrenControls(collapse.Children,item.Gutter);}								
+							@:</el-tab-pane>
+}
+						@:</el-tabs>
+					@:</el-col>
+}
+else if(item.jnpfKey == "divider")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-form-item label-width="0">
+							@:<el-divider content-position="@(@item.Contentposition)">@(@item.Default)</el-divider>
+						@:</el-form-item>
+					@:</el-col>
+}
+else if(item.jnpfKey == "groupTitle")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-form-item label-width="0">
+							@:<groupTitle content-position="@(@item.Contentposition)" content="@(@item.Content)"></groupTitle>
+						@:</el-form-item>
+					@:</el-col>
+}
+else if(item.jnpfKey == "JNPFText")
+{
+					@:<el-col :span="@(@item.Span)">
+						@:<el-form-item label-width="0">
+							@:<JNPF-Text value="@(@item.DefaultValue)" :textStyle='@(@item.TextStyle)' :style='@(@item.Style)'></JNPF-Text>
+						@:</el-form-item>
+					@:</el-col>
+}
+else
+{
+@if(item.NoShow == "")
+{
+@if(Model.AllColumnDesign.useFormPermission)
+{
+					@:<el-col :span="@(@item.Span)" v-if="jnpf.hasFormP('@(@item.OriginalName)')">
+}
+else
+{
+					@:<el-col :span="@(@item.Span)">
+}            
+}else
+{
+					@:<el-col :span="@(@item.Span)" @(@item.NoShow)>
+}
+						@:<el-form-item label="@(@item.Label)" prop="@(@item.LowerName)">
+							@:<@(@item.Tag) @(@item.vModel)@(@item.Placeholder)@(@item.Clearable)@(@item.Readonly)@(@item.MainProps)@(@item.Required)@(@item.Disabled)@(@item.ShowWordLimit)@(@item.IsRange)@(@item.Style)@(@item.Type)@(@item.Format)@(@item.ValueFormat)@(@item.AutoSize)@(@item.Multiple)@(@item.Size)@(@item.PrefixIcon)@(@item.SuffixIcon)@(@item.MaxLength)@(@item.Step)@(@item.StepStrictly)@(@item.ControlsPosition)@(@item.ShowChinese)@(@item.ShowPassword)@(@item.Filterable)@(@item.ShowAllLevels)@(@item.RangeSeparator)@(@item.StartPlaceholder)@(@item.EndPlaceholder)@(@item.Separator)@(@item.PickerOptions)@(@item.Max)@(@item.Min)@(@item.AllowHalf)@(@item.ShowTexts)@(@item.ShowScore)@(@item.ShowAlpha)@(@item.ColorFormat)@(@item.ActiveText)@(@item.InactiveText)@(@item.ActiveColor)@(@item.IsSwitch)@(@item.ShowStops)@(@item.Range)@(@item.Accept)@(@item.ShowTip)@(@item.FileSize)@(@item.SizeUnit)@(@item.Limit)@(@item.Contentposition)@(@item.ButtonText)@(@item.Level)@(@item.ActionText)@(@item.Shadow)@(@item.Content)@(@item.Options)>
+@if(item.jnpfKey == "select")
+{
+								@:<el-option v-for="(item, index) in @(@item.LowerName)Options" :key="index" :label="item.@(@item.Props.label)" :value="item.@(@item.Props.value)" ></el-option>
+}
+else if(item.jnpfKey == "radio")
+{
+								@:<el-radio@(@item.OptionType) v-for="(item, index) in @(@item.LowerName)Options" :key="index" :label="item.@(@item.Props.value)"  >{{item.@(@item.Props.label)}}</el-radio@(@item.OptionType)>
+}
+else if(item.jnpfKey == "checkbox")
+{
+								@:<el-checkbox@(@item.OptionType) v-for="(item, index) in @(@item.LowerName)Options" :key="index" :label="item.@(@item.Props.value)" >{{item.@(@item.Props.label)}}</el-checkbox@(@item.OptionType)>
+}
+else if(item.jnpfKey == "comInput")
+{
+@if(item.Prepend != null)
+{
+								@:<template slot="prepend">@(@item.Prepend)</template>
+}
+@if(item.Append != null)
+{
+								@:<template slot="append">@(@item.Append)</template>
+}
+}
+							@:</@(@item.Tag)>
+						@:</el-form-item>
+					@:</el-col>
+}
+}
+				</el-form>
+	}
+}
+@{
+	void GenerateFormChildrenControls(ICollection<CodeGenFormAllControlsDesign> childrenList, int gutter)
+	{
+@foreach(var children in childrenList)
+{
+@if(children.jnpfKey=="row")
+{
+							@:<el-col :span="@(@children.Span)">
+								@:<el-row :gutter="@(@gutter)">
+@{GenerateFormChildrenControls(children.Children,children.Gutter);}
+								@:</el-row>
+							@:</el-col>
+}
+else if(children.jnpfKey=="table")
+{
+@if(Model.AllColumnDesign.useFormPermission)
+{
+					@:<el-col :span="@(@children.Span)" v-if="jnpf.hasFormP('@(@children.LowerChildTableName)List')">
+}
+else
+{
+					@:<el-col :span="@(@children.Span)">
+}
+								@:<el-form-item label-width="0">
+@if(children.ShowTitle)
+{
+									@:<div class="JNPF-common-title">
+										@:<h2>@(@children.Label)</h2>
+									@:</div>
+}
+								@:<el-table :data="dataForm.@(@children.LowerChildTableName)List" size='mini'>
+									@:<el-table-column type="index" width="50" label="序号" align="center" />
+@foreach (var childrens in children.Children)
+{
+										@:<el-table-column prop="@(@childrens.LowerName)" @(@childrens.ColumnWidth)label="@(@childrens.Label)">
+											@:<template slot-scope="scope">
+@if(childrens.jnpfKey == "select")
+{
+												@:<@(@childrens.Tag) v-model="scope.row.@(@childrens.LowerName)" @(@childrens.MainProps)@(@childrens.Options)@(@childrens.ShowAllLevels)@(@childrens.Separator)@(@childrens.Placeholder)@(@childrens.Clearable)@(@childrens.Readonly)@(@childrens.Disabled)@(@childrens.ShowWordLimit)@(@childrens.Style)@(@childrens.Type)@(@childrens.Format)@(@childrens.ValueFormat)@(@childrens.AutoSize)@(@childrens.Multiple)>
+													@:<el-option v-for="(item, index) in @(@childrens.LowerName)Options" :key="index" :label="item.@(@childrens.Props.label)" :value="item.@(@childrens.Props.value)" :disabled="item.disabled"></el-option>
+												@:</@(@childrens.Tag)>
+}
+else
+{
+												@:<@(@childrens.Tag) v-model="scope.row.@(@childrens.LowerName)" @(@childrens.Placeholder)@(@childrens.Clearable)@(@childrens.Readonly)@(@childrens.Disabled)@(@childrens.ShowWordLimit)@(@childrens.Style)@(@childrens.Type)@(@childrens.Format)@(@childrens.ValueFormat)@(@childrens.AutoSize)@(@childrens.Multiple)@(@childrens.Size)@(@childrens.MainProps)@(@childrens.Options)@(@childrens.ShowAllLevels)@(@childrens.Separator)></@(@childrens.Tag)>
+}
+											@:</template>
+										@:</el-table-column>
+}
+										@:<el-table-column label="操作" width="50">
+											@:<template slot-scope="scope">
+												@:<el-button size="mini" type="text" class="JNPF-table-delBtn" @@click="handleDel@(@children.ChildTableName)EntityList(scope.$index)">删除</el-button>
+											@:</template>
+										@:</el-table-column>
+									@:</el-table>
+									@:<div class="table-actions" @@click="addHandle@(@children.ChildTableName)EntityList()">
+										@:<el-button type="text" icon="el-icon-plus">新增</el-button>
+									@:</div>
+								@:</el-form-item>
+							@:</el-col>
+}
+else if(children.jnpfKey=="card")
+{
+							@:<el-col :span="@(@children.Span)">
+								@:<el-card class="mb-20" shadow="@(@children.Shadow)">
+@{GenerateFormChildrenControls(children.Children,children.Gutter);}
+								@:</el-card>
+							@:</el-col>
+}
+else if(children.jnpfKey == "collapse")
+{
+					@:<el-col :span="@(@children.Span)">
+						@:<el-collapse :accordion="@(@children.Accordion)" v-model="@(@children.Name)" class="mb-20">
+@foreach(var collapse in children.Children)
+{
+							@:<el-collapse-item title="@(@collapse.Title)" name="@(@collapse.Name)">
+@{GenerateFormChildrenControls(collapse.Children,collapse.Gutter);}
+							@:</el-collapse-item>
+}
+						@:</el-collapse>
+					@:</el-col>
+}
+else if(children.jnpfKey == "tab")
+{
+					@:<el-col :span="@(@children.Span)">
+						@:<el-tabs type="@(@children.Type)" tab-position="@(@children.TabPosition)" v-model="@(@children.Name)" class="mb-10">
+@foreach(var collapse in children.Children)
+{
+							@:<el-tab-pane label="@(@collapse.Title)">
+@{GenerateFormChildrenControls(collapse.Children,collapse.Gutter);}
+							@:</el-tab-pane>
+}
+						@:</el-tabs>
+					@:</el-col>
+}
+else if(children.jnpfKey=="divider")
+{
+							@:<el-col :span="@(@children.Span)">
+								@:<el-form-item label-width="0">
+									@:<el-divider content-position="@(@children.Contentposition)">@(@children.Default)</el-divider>
+								@:</el-form-item>
+							@:</el-col>
+}
+else if(children.jnpfKey=="groupTitle")
+{
+							@:<el-col :span="@(@children.Span)">
+								@:<el-form-item label-width="0">
+									@:<groupTitle content-position="@(@children.Contentposition)" content="@(@children.Content)"></groupTitle>
+								@:</el-form-item>
+							@:</el-col>
+}
+else if(children.jnpfKey=="JNPFText")
+{
+							@:<el-col :span="@(@children.Span)">
+								@:<el-form-item label-width="0">
+									@:<JNPF-Text value="@(@children.DefaultValue)" :textStyle='@(@children.TextStyle)' :style='@(@children.Style)'></JNPF-Text>
+								@:</el-form-item>
+							@:</el-col>
+}
+else {
+@if(children.NoShow == "")
+{
+@if(Model.AllColumnDesign.useFormPermission)
+{
+							@:<el-col :span="@(@children.Span)" v-if="jnpf.hasFormP('@(@children.OriginalName)')">
+}
+else
+{
+							@:<el-col :span="@(@children.Span)">
+}
+}else
+{
+							@:<el-col :span="@(@children.Span)" @(@children.NoShow="")>
+}
+								@:<el-form-item label="@(@children.Label)" prop="@(@children.LowerName)">
+									@:<@(@children.Tag) @(@children.vModel)@(@children.Placeholder)@(@children.MainProps)@(@children.Clearable)@(@children.Readonly)@(@children.Required)@(@children.Disabled)@(@children.ShowWordLimit)@(@children.IsRange)@(@children.Style)@(@children.Type)@(@children.Format)@(@children.ValueFormat)@(@children.AutoSize)@(@children.Multiple)@(@children.Size)@(@children.PrefixIcon)@(@children.SuffixIcon)@(@children.MaxLength)@(@children.Step)@(@children.StepStrictly)@(@children.ControlsPosition)@(@children.ShowChinese)@(@children.ShowPassword)@(@children.Filterable)@(@children.ShowAllLevels)@(@children.RangeSeparator)@(@children.StartPlaceholder)@(@children.EndPlaceholder)@(@children.Separator)@(@children.PickerOptions)@(@children.Max)@(@children.Min)@(@children.AllowHalf)@(@children.ShowTexts)@(@children.ShowScore)@(@children.ShowAlpha)@(@children.ColorFormat)@(@children.ActiveText)@(@children.InactiveText)@(@children.ActiveColor)@(@children.IsSwitch)@(@children.ShowStops)@(@children.Range)@(@children.Accept)@(@children.ShowTip)@(@children.FileSize)@(@children.SizeUnit)@(@children.Limit)@(@children.Contentposition)@(@children.ButtonText)@(@children.Level)@(@children.ActionText)@(@children.Shadow)@(@children.Content)@(@children.Options)>
+@if(children.jnpfKey == "select")
+{
+										@:<el-option v-for="(item, index) in @(@children.LowerName)Options" :key="index" :label="item.@(@children.Props.label)" :value="item.@(@children.Props.value)" ></el-option>
+}
+else if(children.jnpfKey == "radio")
+{
+										@:<el-radio@(@children.OptionType) v-for="(item, index) in @(@children.LowerName)Options" :key="index" :label="item.@(@children.Props.value)"  >{{item.@(@children.Props.label)}}</el-radio@(@children.OptionType)>
+}
+else if(children.jnpfKey == "checkbox")
+{
+										@:<el-checkbox@(@children.OptionType) v-for="(item, index) in @(@children.LowerName)Options" :key="index" :label="item.@(@children.Props.value)" >{{item.@(@children.Props.label)}}</el-checkbox@(@children.OptionType)>
+}
+else if(children.jnpfKey == "comInput")
+{
+@if(children.Prepend != null)
+{
+										@:<template slot="prepend">@(@children.Prepend)</template>
+}
+@if(children.Append != null)
+{
+										@:<template slot="append">@(@children.Append)</template>
+}
+}
+									@:</@(@children.Tag)>
+								@:</el-form-item>
+							@:</el-col>
+}
+}
+	}
+}

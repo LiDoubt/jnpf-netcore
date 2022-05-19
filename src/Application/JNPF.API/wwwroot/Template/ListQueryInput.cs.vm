@@ -1,0 +1,40 @@
+﻿using JNPF.Common.Filter;
+using System.Collections.Generic;
+
+namespace JNPF.@(@Model.NameSpace).Entitys.Dto.@Model.ClassName
+{
+    /// <summary>
+    /// @(@Model.BusName)列表查询输入
+    /// </summary>
+    public class @(@Model.ClassName)ListQueryInput : PageInputBase
+    {
+        /// <summary>
+        /// 选择导出数据key
+        /// </summary>
+        public string selectKey { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public int dataType { get; set; }
+
+@if(Model.Type == 5)
+{
+        @:/// <summary>
+        @:/// 关键词查询
+        @:/// </summary>
+        @:public string keyword { get; set; }
+}
+
+@foreach (var column in Model.TableField){
+@if (column.QueryWhether)
+{
+        @:/// <summary>
+        @:/// @column.ColumnComment
+        @:/// </summary>
+        @:public string @column.LowerColumnName { get; set; }
+        @:
+}
+}
+    }
+}

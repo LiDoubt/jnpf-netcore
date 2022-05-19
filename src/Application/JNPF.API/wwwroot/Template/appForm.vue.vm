@@ -1,0 +1,908 @@
+<template>
+	<view class="jnpf-wrap jnpf-wrap-form">
+		<u-form :model="@(@Model.FormDataModel.formModel)" :rules="@(@Model.FormDataModel.formRules)" ref="@(@Model.FormDataModel.formModel)" :errorType="['toast']" label-position="@(@Model.FormDataModel.labelPosition)" label-width="@(@Model.FormDataModel.labelWidth)" label-align="left" class="jnpf-form">
+			@{GenCodeAppFormControls();}
+		</u-form>
+		<view class="buttom-actions">
+			<u-button class="buttom-btn" @@click="jnpf.goBack()">@(@Model.FormDataModel.cancelButtonText)</u-button>
+			<u-button class="buttom-btn" type="primary" @@click="submitForm" :loading="btnLoading">@(@Model.FormDataModel.confirmButtonText)</u-button>
+		</view>
+	</view>
+</template>
+<script>
+    import {getDictionaryDataSelector,previewDataInterface} from '@@/api/common'
+    import request from '@@/utils/request'
+    export default {
+        data() {
+            return {
+                btnLoading: false,
+
+@foreach(var item in @Model.OptionsList)
+{
+@if(item.jnpfKey == "tab")
+{
+				@:@(@item.LowerName)Current:@(@item.Content),
+}
+}
+                @(@Model.FormDataModel.formModel): {
+                    @(@Model.PrimaryKey):'',
+@foreach(var item in Model.FormList)
+{
+@if(item.jnpfKey == "checkbox" || item.jnpfKey == "cascader" || item.jnpfKey == "uploadImg" || item.jnpfKey == "uploadFz" || item.jnpfKey == "address")
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):[],
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+else if(item.jnpfKey == "radio")
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+else if(item.jnpfKey == "select")
+{
+@if(item.Multiple)
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):[],
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+else
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}
+}
+}
+else if(item.jnpfKey == "table")
+{
+					@:@(@item.LowerName)List:[],
+}
+else 
+{
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+switch(item.jnpfKey)
+{
+case "numInput":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+case "date":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+case "rate":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+case "slider":
+					@:@(@item.LowerName):@(@item.DefaultValue),
+	break;
+default:
+if(@item.DefaultValue == null || @item.DefaultValue.ToString() == "")
+{
+					@:@(@item.LowerName):undefined,
+}else{
+					@:@(@item.LowerName):"@(@item.DefaultValue)",
+}	
+	break;
+}
+}					
+}
+}
+                },
+                rules: {
+@foreach(var item in Model.FormList)
+{
+@if(item.Required || (item.RegList!=null && item.RegList.Count > 0))
+{
+					@:@(@item.LowerName):[
+@if(item.Required)
+{
+						@:{
+							@:required:true,
+							@:message:'请输入@(@item.Placeholder)',
+@if(item.Trigger.Contains("["))
+{
+							@:trigger:@(@item.Trigger)
+}
+else
+{
+							@:trigger:'@(@item.Trigger)'
+}
+							
+						@:},
+}
+@if(item.RegList!=null && item.RegList.Count > 0)
+{
+@foreach(var items in item.RegList)
+{
+						@:{
+							@:pattern:@(@items.pattern),
+							@:message:'@(@items.message)',
+if(item.Trigger.Contains("["))
+{
+							@:trigger:@(@item.Trigger)
+}
+else
+{
+							@:trigger:'@(@item.Trigger)'
+}
+						@:},
+}
+}
+					@:],
+}
+}
+                },
+@foreach(var item in Model.OptionsList)
+{
+@if(item.jnpfKey == "collapse")
+{
+				@:@(@item.Name):@(@item.Content),
+}
+else if(item.jnpfKey == "tab")
+{
+				@:@(@item.Name)Title:@(@item.Title),
+				@:@(@item.Name):"@(@item.Content)",
+}
+else{
+@if(item.IsProps)
+{
+				@:@(@item.LowerName)Props:@(item.Props),
+}
+				@:@item.Content
+}				
+}
+            };
+        },
+        onLoad(option) {
+@if(Model.WebType != 1)
+{
+            @:this.@(@Model.FormDataModel.formModel).@(@Model.PrimaryKey) = option.id || ''
+            @:uni.setNavigationBarTitle({
+                @:title: this.@(@Model.FormDataModel.formModel).@(@Model.PrimaryKey) ? '编辑' : '新增'
+            @:})
+            @:this.initData()
+}
+@foreach(var item in @Model.OptionsList)
+{
+@if(!item.IsStatic && (item.IsChildren || item.IsIndex))
+{
+			@:this.get@(@item.LowerName)Options();
+}
+}
+        },
+        onReady() {
+            this.$refs.@(@Model.FormDataModel.formModel).setRules(this.rules);
+        },
+        methods: {
+@foreach(var item in @Model.OptionsList)
+{
+@if(item.jnpfKey == "tab")
+{
+			@:@(@item.LowerName)Change(index)
+			@:{
+				@:this.@(@item.LowerName)Current = index;
+			@:},
+}
+@if(!item.IsStatic && item.DictionaryType !=null)
+{
+			@:get@(@item.LowerName)Options(){
+switch(@item.DataType)
+{
+case "dictionary":
+				@:getDictionaryDataSelector('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data.list
+	break;
+case "dynamic":
+				@:previewDataInterface('@(@item.DictionaryType)').then(res => {
+					@:this.@(@item.LowerName)Options = res.data
+	break;
+}
+				@:});
+			@:},
+}
+}
+@if(Model.WebType != 1)
+{
+            @:initData() {
+                @:if (this.@(@Model.FormDataModel.formModel).@(@Model.PrimaryKey)) {
+                    @:request({
+                        @:url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)/' + this.@(@Model.FormDataModel.formModel).@(@Model.PrimaryKey),
+                        @:method: 'get',
+                    @:}).then(res => {
+                        @:this.@(@Model.FormDataModel.formModel) = res.data;
+@foreach(var item in Model.FormList)
+{
+@if(item.jnpfKey == "checkbox" || item.jnpfKey == "cascader" || item.jnpfKey == "uploadImg" || item.jnpfKey == "uploadFz" || item.jnpfKey == "address")
+{
+						@:if(!this.@(@Model.FormDataModel.formModel).@(@item.LowerName))this.@(@Model.FormDataModel.formModel).@(@item.LowerName)=[];
+}
+}
+                    @:})
+                @:}
+            @:},
+			@:submitForm() {
+                @:this.$refs.@(@Model.FormDataModel.formModel).validate(valid => {
+                    @:if (!valid) return
+                    @:this.btnLoading = true
+                    @:if (this.@(@Model.FormDataModel.formModel).@(@Model.PrimaryKey)) {
+                        @:request({
+                            @:url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)/' + this.@(@Model.FormDataModel.formModel).@(@Model.PrimaryKey),
+                            @:method: 'put',
+                            @:data: this.@(@Model.FormDataModel.formModel),
+                        @:}).then(res => {
+                            @:uni.showToast({
+                                @:title: res.msg,
+                                @:complete: () => {
+                                    @:setTimeout(() => {
+                                        @:this.btnLoading = false
+                                        @:uni.$emit('refresh')
+                                        @:uni.navigateBack()
+                                    @:}, 1500)
+                                @:}
+                            @:})
+                        @:})
+                    @:} else {
+                        @:request({
+                            @:url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)',
+                            @:method: 'post',
+                            @:data: this.@(@Model.FormDataModel.formModel),
+                        @:}).then(res => {
+                            @:uni.showToast({
+                                @:title: res.msg,
+                                @:complete: () => {
+                                    @:setTimeout(() => {
+                                        @:this.btnLoading = false
+                                        @:uni.$emit('refresh')
+                                        @:uni.navigateBack()
+                                    @:}, 1500)
+                                @:}
+                            @:})
+                        @:})
+                    @:}
+                @:});
+            @:},
+}
+else
+{
+			@:resetForm() {
+				@:this.$refs.@(@Model.FormDataModel.formModel).resetFields()
+			@:},
+			@:submitForm() {
+				@:this.$refs.@(@Model.FormDataModel.formModel).validate(valid => {
+					@:if (!valid) return
+					@:this.btnLoading = true
+					@:request({
+						@:url: '/api/@(@Model.NameSpace)/@(@Model.ClassName)',
+						@:method: 'post',
+						@:data: this.@(@Model.FormDataModel.formModel),
+					@:}).then(res => {
+						@:uni.showToast({
+							@:title: res.msg,
+							@:complete: () => {
+								@:setTimeout(() => {
+									@:this.btnLoading = false
+									@:uni.navigateBack()
+								@:}, 1500)
+							@:}
+						@:})
+					@:})
+				@:});
+			@:},
+}            
+@foreach(var item in Model.FormList)
+{
+@if(item.jnpfKey == "table")
+{
+			@:add@(@item.Name)() {
+				@:let item = {
+@foreach(var children in item.ChildrenList)
+{
+@if(children.jnpfKey == "checkbox" || children.jnpfKey == "cascader" || children.jnpfKey == "uploadImg" || children.jnpfKey == "uploadFz" || children.jnpfKey == "address")
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):[],
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+else if(children.jnpfKey == "radio")
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+else if(children.jnpfKey == "select")
+{
+@if(children.Multiple)
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):[],
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+else
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}
+}
+}
+else 
+{
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+switch(children.jnpfKey)
+{
+case "numInput":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+case "date":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+case "rate":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+case "slider":
+					@:@(@children.LowerName):@(@children.DefaultValue),
+	break;
+default:
+if(@children.DefaultValue == null || @children.DefaultValue.ToString() == "")
+{
+					@:@(@children.LowerName):undefined,
+}else{
+					@:@(@children.LowerName):"@(@children.DefaultValue)",
+}	
+	break;
+}
+}					
+}
+}
+				@:}
+				@:this.@(@Model.FormDataModel.formModel).@(@item.LowerName)List.push(item)
+			@:},
+			@:del@(@item.Name)(i) {
+				@:this.@(@Model.FormDataModel.formModel).@(@item.LowerName)List.splice(i, 1);
+			@:},
+}
+}
+        }
+    };
+</script>
+
+@{
+    void GenCodeAppFormControls()
+	{
+@foreach(var item in Model.FormAllContols)
+{
+@switch(item.jnpfKey)
+{
+case "table":
+            @:<view class="jnpf-table">
+				@:<view class="jnpf-table-item" v-for="(item,i) in @(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List" :key="i">
+					@:<view class="jnpf-table-item-title u-flex u-row-between">
+						@:<text class="jnpf-table-item-title-num">>@(@item.Label)({{i+1}})</text>
+						@:<view class="jnpf-table-item-title-action" v-if="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List.length > 1" @@click="del@(@item.ChildTableName)(i)">删除</view>
+                    @:</view>
+@foreach(var children in item.Children)
+{
+@switch(children.jnpfKey)
+{
+case "comSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+					    @:<jnpf-org-select type="organize" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+					@:</u-form-item>
+break;
+case "address":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-city-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Level)@(@children.Disabled)></jnpf-city-select>
+					@:</u-form-item>
+break;
+case "billRule":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+                        @:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" placeholder="系统自动生成" @(@children.Disabled)></u-input>
+                    @:</u-form-item>
+break;
+case "userSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-org-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+					@:</u-form-item>
+break;
+case "treeSelect":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-tree-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" :options="@(@children.LowerName)Options" :props="@(@children.LowerName)Props" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-tree-select>
+                    @:</u-form-item>
+break;
+case "posSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-org-select type="position" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+                    @:</u-form-item>
+break;
+case "depSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-org-select type="department" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+					@:</u-form-item>
+break;
+case "select":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder):options="@(@children.LowerName)Options" :props="@(@children.LowerName)Props" @(@children.Multiple)@(@children.Disabled)></jnpf-select>
+					@:</u-form-item>
+break;
+case "cascader":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-cascader v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder):options="@(@children.LowerName)Options" :props="@(@children.LowerName)Props" @(@children.Multiple)@(@children.Disabled)></jnpf-cascader>
+					@:</u-form-item>
+break;
+case "numInput":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<u-number-box v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" :input-width="120" :input-height="60" :positive-integer="false" @(@children.Max)@(@children.Min)@(@children.Step)@(@children.Disabled)></u-number-box>
+					@:</u-form-item>
+break;
+case "date":
+case "time":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-date-time @(@children.Type)v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Disabled)></jnpf-date-time>
+					@:</u-form-item>
+break;
+case "switch":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<view class="u-flex u-form-item-switch">
+							@:<jnpf-switch v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)"  @(@children.Disabled)></jnpf-switch>
+						@:</view>
+					@:</u-form-item>
+break;
+case "comInput":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Disabled)></u-input>
+					@:</u-form-item>
+break;
+}
+}
+                @:</view>
+				@:<view class="jnpf-table-addBtn" @@click="add@(@item.ChildTableName)">
+					@:<u-icon name="plus" color="#2979ff"></u-icon>添加
+				@:</view>
+            @:</view>
+break;
+case "groupTitle":
+			@:<jnpf-group content="@(@item.Content)" content-position="@(@item.Contentposition)"></jnpf-group>
+break;
+case "divider":
+			@:<u-divider half-width="200" height="80">@(@item.Default)</u-divider>
+break;
+case "card":
+case "row":
+			@:<view class="jnpf-card">
+				@:<view class="jnpf-card-cap u-line-1">@(@item.Content)</view>
+@{GenCodeAppFormChildrenControls(item.Children);}
+			@:</view>
+break;
+case "comInput":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.MaxLength)@(@item.Placeholder)@(@item.Disabled)></u-input>
+			@:</u-form-item>
+break;
+case "textarea":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" type="textarea" @(@item.MaxLength)@(@item.Placeholder)@(@item.Disabled)/>
+            @:</u-form-item>
+break;
+case "numInput":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<u-number-box v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :input-width="120" :input-height="60" @(@item.Max)@(@item.Min)@(@item.Step)@(@item.Disabled)></u-number-box>
+            @:</u-form-item>
+break;
+case "switch":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<view class="u-flex u-form-item-switch">
+					@:<jnpf-switch v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)></jnpf-switch>
+                @:</view>
+            @:</u-form-item>
+break;
+case "radio":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-radio-group v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)>
+					@:<u-radio v-for="(option, index) in @(@item.LowerName)Options" :key="index" :name="option['@(@item.Props.value)']">{{option['@(@item.Props.label)']}}</u-radio>
+                @:</u-radio-group>
+            @:</u-form-item>
+break; 
+case "checkbox":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-checkbox v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Disabled)></jnpf-checkbox>
+            @:</u-form-item>
+break;
+case "select":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Placeholder)@(@item.Multiple)@(@item.Disabled)></jnpf-select>
+            @:</u-form-item>
+break;
+case "cascader":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-cascader v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Placeholder)@(@item.Disabled)></jnpf-cascader>
+            @:</u-form-item>
+break;
+case "address":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-city-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Level)@(@item.Placeholder)@(@item.Disabled)></jnpf-city-select>
+            @:</u-form-item>
+break;
+case "treeSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-tree-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Placeholder)@(@item.Multiple)@(@item.Disabled)></jnpf-tree-select>
+            @:</u-form-item>
+break;
+case "JNPFText":
+			@:<jnpf-text value="@(@item.DefaultValue)" :textStyle='@(@item.TextStyle)'/>
+break;
+case "uploadImg":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-upload v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)></jnpf-upload>
+            @:</u-form-item>
+break;
+case "uploadFz":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-file :list="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)/>
+            @:</u-form-item>
+break;
+case "rate":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-rate v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" size="40" :count="@(@item.Count)" @(@item.Readonly)@(@item.AllowHalf)@(@item.Disabled)></u-rate>
+            @:</u-form-item>
+break;
+case "slider":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<u-slider v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Step)@(@item.Min)@(@item.Max)@(@item.Disabled)style="width: 100%;">
+					@:<view class="slider-badge-button">{{@(@Model.FormDataModel.formModel).@(@item.LowerName)}}</view>
+                @:</u-slider>
+            @:</u-form-item>
+break;
+case "time":
+case "date":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-date-time @(@item.Type)v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Placeholder)@(@item.Disabled)></jnpf-date-time>
+            @:</u-form-item>
+break;
+case "comSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select type="organize" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "depSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select type="department" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "posSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select type="position" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "userSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select  v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "tab":
+			@:<view prop="@(@item.LowerName)">
+				@:<u-tabs :is-scroll="false" :list="@(@item.LowerName)Title" name="title" :current="@(@item.LowerName)Current" @@change="@(@item.LowerName)Change"></u-tabs>
+				@:<view>
+@{ int n = 0;}
+@foreach(var collapse in item.Children)
+{
+					@:<view v-if="@(@n) == @(@item.LowerName)Current">
+@{GenCodeAppFormChildrenControls(collapse.Children);}
+					@:</view>
+					@{n++;}
+}
+				@:</view>
+			@:</view>
+break;
+case "collapse":
+			@:<view prop="@(@item.LowerName)">
+				@:<template>
+					@:<view class="collapse">
+						@:<u-collapse v-model="@(@item.Name)" :accordion="@(@item.Accordion)">
+@foreach(var collapse in item.Children)
+{
+							@:<u-collapse-item class="collapse-item" name="@(@collapse.Name)" title="@(@collapse.Title)">
+@{GenCodeAppFormChildrenControls(collapse.Children);}
+							@:</u-collapse-item>
+}
+						@:</u-collapse>
+					@:</view>
+				@:</template>
+			@:</view>
+break;
+case "colorPicker":
+case "editor":
+break;
+default:
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.NoShow)>
+                @:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" placeholder="系统自动生成" @(@item.Disabled)></u-input>
+            @:</u-form-item>
+break;
+}
+}
+	}
+}
+@{
+	void GenCodeAppFormChildrenControls(ICollection<CodeGenFormAllControlsDesign> childrenList)
+	{
+@foreach(var item in childrenList)
+{
+@switch(item.jnpfKey)
+{
+case "table":
+            @:<view class="jnpf-table">
+				@:<view class="jnpf-table-item" v-for="(item,i) in @(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List" :key="i">
+					@:<view class="jnpf-table-item-title u-flex u-row-between">
+						@:<text class="jnpf-table-item-title-num">>@(@item.Label)({{i+1}})</text>
+						@:<view class="jnpf-table-item-title-action" v-if="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List.length > 1" @@click="delItem(i)">删除</view>
+                    @:</view>
+@foreach(var children in item.Children)
+{
+@switch(children.jnpfKey)
+{
+case "comSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+					    @:<jnpf-org-select type="organize" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+					@:</u-form-item>
+break;
+case "address":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-city-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Level)@(@children.Disabled)></jnpf-city-select>
+					@:</u-form-item>
+break;
+case "billRule":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+                        @:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" placeholder="系统自动生成" @(@children.Disabled)></u-input>
+                    @:</u-form-item>
+break;
+case "userSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-org-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+					@:</u-form-item>
+break;
+case "treeSelect":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-tree-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" :options="@(@children.LowerName)Options" :props="@(@children.LowerName)Props" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-tree-select>
+                    @:</u-form-item>
+break;
+case "posSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-org-select type="position" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+                    @:</u-form-item>
+break;
+case "depSelect":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-org-select type="department" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Multiple)@(@children.Disabled)></jnpf-org-select>
+					@:</u-form-item>
+break;
+case "select":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder):options="@(@children.LowerName)Options" :props="@(@children.LowerName)Props" @(@children.Multiple)@(@children.Disabled)></jnpf-select>
+					@:</u-form-item>
+break;
+case "cascader":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-cascader v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder):options="@(@children.LowerName)Options" :props="@(@children.LowerName)Props" @(@children.Multiple)@(@children.Disabled)></jnpf-cascader>
+					@:</u-form-item>
+break;
+case "numInput":
+                    @:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<u-number-box v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" :input-width="120" :input-height="60" :positive-integer="false" @(@children.Max)@(@children.Min)@(@children.Step)@(@children.Disabled)></u-number-box>
+					@:</u-form-item>
+break;
+case "time":
+case "date":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<jnpf-date-time @(@children.Type)v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Disabled)></jnpf-date-time>
+					@:</u-form-item>
+break;
+case "switch":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<view class="u-flex u-form-item-switch">
+							@:<jnpf-switch v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)"  @(@children.Disabled)></jnpf-switch>
+						@:</view>
+					@:</u-form-item>
+break;
+case "comInput":
+					@:<u-form-item label="@(@children.Label)" prop="@(@children.LowerName)" @(@children.Required)>
+						@:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerChildTableName)List[i].@(@children.LowerName)" @(@children.Placeholder)@(@children.Disabled)></u-input>
+					@:</u-form-item>
+break;
+}
+}
+                @:</view>
+				@:<view class="jnpf-table-addBtn" @@click="addItem">
+					@:<u-icon name="plus" color="#2979ff"></u-icon>添加
+				@:</view>
+            @:</view>
+break;
+case "groupTitle":
+			@:<jnpf-group content="@(@item.Content)" content-position="@(@item.Contentposition)"></jnpf-group>
+break;
+case "divider":
+			@:<u-divider half-width="200" height="80">@(@item.Default)</u-divider>
+break;
+case "card":
+case "row":
+			@:<view class="jnpf-card">
+				@:<view class="jnpf-card-cap u-line-1">@(@item.Content)</view>
+@{GenCodeAppFormChildrenControls(item.Children);}
+			@:</view>
+break;
+case "comInput":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.MaxLength)@(@item.Placeholder)@(@item.Disabled)></u-input>
+			@:</u-form-item>
+break;
+case "textarea":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" type="textarea" @(@item.MaxLength)@(@item.Placeholder)@(@item.Disabled)/>
+            @:</u-form-item>
+break;
+case "numInput":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<u-number-box v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :input-width="120" :input-height="60" @(@item.Max)@(@item.Min)@(@item.Step)@(@item.Disabled)></u-number-box>
+            @:</u-form-item>
+break;
+case "switch":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<view class="u-flex u-form-item-switch">
+					@:<jnpf-switch v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)></jnpf-switch>
+                @:</view>
+            @:</u-form-item>
+break;
+case "radio":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-radio-group v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)>
+					@:<u-radio v-for="(option, index) in @(@item.LowerName)Options" :key="index" :name="option['@(@item.Props.value)']">{{option['@(@item.Props.label)']}}</u-radio>
+                @:</u-radio-group>
+            @:</u-form-item>
+break;
+case "checkbox":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-checkbox v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Disabled)></jnpf-checkbox>
+            @:</u-form-item>
+break;
+case "select":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Placeholder)@(@item.Multiple)@(@item.Disabled)></jnpf-select>
+            @:</u-form-item>
+break;
+case "cascader":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-cascader v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Placeholder)@(@item.Disabled)></jnpf-cascader>
+            @:</u-form-item>
+break;
+case "address":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-city-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Level)@(@item.Placeholder)@(@item.Disabled)></jnpf-city-select>
+            @:</u-form-item>
+break;
+case "treeSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-tree-select v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" :options="@(@item.LowerName)Options" :props="@(@item.LowerName)Props" @(@item.Placeholder)@(@item.Multiple)@(@item.Disabled)></jnpf-tree-select>
+            @:</u-form-item>
+break;
+case "JNPFText":
+			@:<jnpf-text value="@(@item.DefaultValue)" :textStyle='@(@item.TextStyle)'/>
+break;
+case "uploadImg":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-upload v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)></jnpf-upload>
+            @:</u-form-item>
+break;
+case "uploadFz":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-file :list="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Disabled)/>
+            @:</u-form-item>
+break;
+case "rate":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<u-rate v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" size="40" :count="@(@item.Count)" @(@item.Readonly)@(@item.AllowHalf)@(@item.Disabled)></u-rate>
+            @:</u-form-item>
+break;
+case "slider":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<u-slider v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Step)@(@item.Min)@(@item.Max)@(@item.Disabled)style="width: 100%;">
+					@:<view class="slider-badge-button">{{@(@Model.FormDataModel.formModel).@(@item.LowerName)}}</view>
+                @:</u-slider>
+            @:</u-form-item>
+break;
+case "time":
+case "date":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+				@:<jnpf-date-time @(@item.Type)v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Placeholder)@(@item.Disabled)></jnpf-date-time>
+            @:</u-form-item>
+break;
+case "comSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select type="organize" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "depSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select type="department" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "posSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select type="position" v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "userSelect":
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.Required)>
+                @:<jnpf-org-select  v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" @(@item.Multiple)@(@item.Placeholder)@(@item.Disabled)></jnpf-org-select>
+            @:</u-form-item>
+break;
+case "tab":
+			@:<view prop="@(@item.LowerName)">
+				@:<u-tabs :is-scroll="false" :list="@(@item.LowerName)Title" name="title" :current="@(@item.LowerName)Current" @@change="@(@item.LowerName)Change"></u-tabs>
+				@:<view>
+@{ int m = 0;}
+@foreach(var collapse in item.Children)
+{
+					@:<view v-if="@(@m) == @(@item.LowerName)Current">
+@{GenCodeAppFormChildrenControls(collapse.Children);}
+					@:</view>
+					@{m++;}
+}
+				@:</view>
+			@:</view>
+break;
+case "collapse":
+			@:<view prop="@(@item.LowerName)">
+				@:<template>
+					@:<view class="collapse">
+						@:<u-collapse v-model="@(@item.Name)" :accordion="@(@item.Accordion)">
+@foreach(var collapse in item.Children)
+{
+							@:<u-collapse-item class="collapse-item" name="@(@collapse.Name)" title="@(@collapse.Title)">
+@{GenCodeAppFormChildrenControls(collapse.Children);}
+							@:</u-collapse-item>
+}
+						@:</u-collapse>
+					@:</view>
+				@:</template>
+			@:</view>
+break;
+case "colorPicker":
+case "editor":
+break;
+default:
+			@:<u-form-item label="@(@item.Label)" prop="@(@item.LowerName)" @(@item.NoShow)>
+                @:<u-input v-model="@(@Model.FormDataModel.formModel).@(@item.LowerName)" placeholder="系统自动生成" @(@item.Disabled)></u-input>
+            @:</u-form-item>
+break;
+}
+}
+	}
+}

@@ -1,0 +1,6 @@
+{
+  "JNPF_App": {
+    "MultiTenancy": false,
+    "MultiTenancyDBInterFace": "https://www.jnpfsoft.com/api/Saas/Tenant/DbContent/"
+  }
+}
