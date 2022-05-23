@@ -32,7 +32,7 @@ namespace JNPF.Extend
     /// 作 者：JNPF开发平台组
     /// 日 期：2021-06-01 
     /// </summary>
-    [ApiDescriptionSettings(Tag = "Extend", Name = "Document", Order = 956)]
+    [ApiDescriptionSettings(Tag = "Extend", Name = "Document", Order = 601)]
     [Route("api/extend/[controller]")]
     public class DocumentService : IDynamicApiController, ITransient
     {
@@ -114,7 +114,6 @@ namespace JNPF.Extend
         {
             var output = await db.Queryable<DocumentEntity, DocumentShareEntity, UserEntity>((a, b, c) => new JoinQueryInfos(JoinType.Left, a.Id == b.DocumentId, JoinType.Left, a.CreatorUserId == c.Id)).Where((a, b, c) => a.DeleteMark == 0 && b.ShareUserId == _userManager.UserId).WhereIF(input.keyword.IsNotEmptyOrNull(), a => a.FullName.Contains(input.keyword)).Select((a, b, c) => new DocumentShareTomeOutput()
             {
-               
                 shareTime = a.ShareTime,
                 fileSize = a.FileSize,
                 fullName = a.FullName,
