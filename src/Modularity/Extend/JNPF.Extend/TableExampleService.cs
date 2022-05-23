@@ -247,7 +247,7 @@ namespace JNPF.Extend
             entity.CostAmount = entity.CostAmount == null ? 0 : entity.CostAmount;
             entity.TunesAmount = entity.TunesAmount == null ? 0 : entity.TunesAmount;
             entity.ProjectedIncome = entity.ProjectedIncome == null ? 0 : entity.ProjectedIncome;
-            await _tableExampleRepository.Context.Updateable(entity).IgnoreColumns(ignoreAllNullColumns:true).ExecuteCommandAsync();
+            await _tableExampleRepository.Context.Updateable(entity).IgnoreColumns(true).ExecuteCommandAsync();
         }
 
         /// <summary>
